@@ -36,19 +36,17 @@ function a_record(){
      echo
    else
      echo -e "$A_RECORD"
-   fi
-  
-   for i in ${A_RECORD}; do
-   PTR_RECORD="$(dig +answer -x "$i" @8.8.8.8 | grep "PTR" | sort | head -n-1)"
-   if [ "$PTR_RECORD" == "" ]; then
+     for i in ${A_RECORD}; do
+     PTR_RECORD="$(dig +answer -x "$i" @8.8.8.8 | grep "PTR" | sort | head -n-1)"
+     if [ "$PTR_RECORD" == "" ]; then
      warning "No PTR record for $i"
      else
      echo "$PTR_RECORD"
+     fi
+     done
+     org "$(curl -s ipinfo.io/"$FA_RECORD" | grep "\"org\":" | xargs | cut -f1 -d ",")"
+     echo 
    fi
-   done
-
-   org "$(curl -s ipinfo.io/"$FA_RECORD" | grep "\"org\":" | xargs | cut -f1 -d ",")"
-   echo 
 }
 
 function mx_record(){

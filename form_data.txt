@@ -1,0 +1,37 @@
+Server ID: 1234
+Operating System: CentOS 7
+IPv4 1:
+  IP Address: 111.90.139.144
+  Netmask: 255.255.255.0
+  Gateway: 111.90.139.1
+Root Password: lavinetys123
+SSH / RDP Port: 56444
+/boot Size: 500
+/efi Size:
+Swap Size: 16000
+Root Size:
+RAID: None
+Control Panel: None
+Addon 1: None
+License:
+Token:
+NIC: NO
+
+Server ID: 1234
+Operating System: CentOS 7
+IPv4 1:
+  IP Address: 111.90.139.144
+  Netmask: 255.255.255.0
+  Gateway: 111.90.139.1
+Root Password: lavinetys123
+SSH / RDP Port: 56444
+/boot Size: 500
+/efi Size:
+Swap Size: 16000
+Root Size:
+RAID: None
+Control Panel: None
+Addon 1: None
+License:
+Token:
+NIC: NO

@@ -1,0 +1,41 @@
+Standard (Linux)
+1. download CentOS iso 
+	 - wget https://repo.shinjiru.com/centos/7.9.2009/isos/x86_64/CentOS-7-x86_64-Minimal-2009.iso
+	
+2. create two folder
+	- mkdir original_iso && mkdir custom_iso
+	
+3. mount original CentOS to the folder named original_iso
+	- sudo mount -o loop CentOS-7-x86_64-Minimal-2009.iso original_iso
+	
+4. copy content of folder original_iso to folder custom_iso 
+	- sudo cp -r original_iso/* custom_iso
+	- umount original_iso 
+	* after a while, it also will umount itself
+	
+5. copy kickstart file to folder custom_iso
+	- sudo cp ks.cfg /custom_iso/isolinux
+	*just place anywhere in folder custom_iso
+	
+6. modify isolinux.cfg for Legacy Boot
+	- vi custom_iso/isolinux/isolinux.cfg
+	- Original line: append initrd=initrd.img inst.stage2=hd:LABEL=CENTOS\x207\x20X8 quiet
+	- adding line in-front word < quiet >, < ks=hd:LABEL=CENTOS\x207\x20X8:/isolinux/ks.cfg xdriver=vesa nomodeset >
+
+	- ks => kickstart file
+	- hd => hard disk
+	- CENTOS\x207\x20X8 => CentOS-7-x86_64
+	- :/isolinux/ks.cfg => path to kickstart file
+	- xdriver=vesa nomodeset => i also dunno
+
+7. modify grub.cfg for UEFI Boot
+	- vi custom_iso/EFI/BOOT/grub.cfg
+	- same as Step 6
+	
+8. create iso using folder custom_iso (centos command)
+	- sudo xorriso -as mkisofs -o new_centos.iso   -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin   -c isolinux/boot.cat -b isolinux/isolinux.bin   -no-emul-boot -boot-load-size 4 -boot-info-table   -eltorito-alt-boot -e images/efiboot.img   -no-emul-boot -isohybrid-gpt-basdat   -V "CentOS 7 x86_64" custom_iso
+	
+	- isohybrid-mbr => iso in MBR format 
+	- /usr/lib/ISOLINUX/isohdpfx.bin => path to isohdpfx.bin in your system (it may be different)
+	- -c isolinux/boot.cat => path to boot.cat in custom_iso
+	- -e images/efiboot.img => path to efiboot.img in custom_iso

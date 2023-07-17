@@ -1,0 +1,16 @@
+Create empty file for custom iso 
+1. rw
+2. kvmd-helper-otgmsd-remount rw
+3. touch .__[name of custom iso].complete 
+	- Example: 
+		Name of custom iso: ubuntu-18.04.4-desktop-amd64.iso
+		Name of empty file: .__ubuntu-18.04.4-desktop-amd64.iso.complete
+4. kvmd-helper-otgmsd-remount ro
+5. ro
+
+Create extra drives for custom iso
+1. rw
+2. vi /etc/kvmd/override.yaml
+	- 
+3. ro 
+4. reboot

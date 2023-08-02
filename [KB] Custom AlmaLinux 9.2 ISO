@@ -1,0 +1,19 @@
+Standard (Linux)
+1. download AlmaLinux 9.2 
+	- wget https://repo.almalinux.org/almalinux/9/isos/x86_64/AlmaLinux-9.2-x86_64-minimal.iso 
+2. create two folder
+	- mkdir iso & cus_iso
+3. mount original AlmaLinux 9.2 to folder named iso
+	- sudo mount -o loop AlmaLinux-9.2-x86_64-minimal.iso iso
+4. copy content of folder iso to folder cus_iso 
+	- sudo cp -r iso/* cus_iso [this method will cause repo file missing]
+	- Ctrl+A & Ctrl+C on the iso
+	- Ctrl+V on the cus_iso
+5. copy ks.cfg to cus_iso
+	- sudo cp ks.cfg cus_iso
+6. modify isolinux.cfg and grub.cfg
+	- add line <inst.ks=cdrom:/ks.cfg inst.ks.sendmac> to isolinux.cfg and grub.cfg (Proxmox)
+	- sudo cp isolinux.cfg cus_iso/isolinux/isolinux.cfg
+	- sudo cp grub.cfg cus_iso/EFI/BOOT/grub.cfg
+7. create iso using cus_iso (ubuntu command)
+	- xorriso -as mkisofs     -iso-level 3 -rock -joliet -J -l    -full-iso9660-filenames     -volid "AlmaLinux-9-2-x86_64-dvd"  -sysid "Linux"   -eltorito-boot isolinux/isolinux.bin     -eltorito-catalog isolinux/boot.cat     -no-emul-boot -boot-load-size 4 -boot-info-table     -eltorito-alt-boot     -e images/efiboot.img     -no-emul-boot -isohybrid-gpt-basdat     -o almal.iso     cus_iso/

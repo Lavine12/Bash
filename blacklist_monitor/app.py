@@ -34,7 +34,8 @@ def index():
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         ips = c.execute('SELECT id, ip, last_checked FROM ip_addresses').fetchall()
-    return render_template('index.html', ips=ips)
+        ip_count = len(ips)
+    return render_template('index.html', ips=ips, ip_count=ip_count)
 
 
 @app.route('/ips', methods=['GET', 'POST'])
@@ -78,6 +79,19 @@ def manage_dnsbls():
             return redirect(url_for('manage_dnsbls'))
         dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
     return render_template('dnsbls.html', dnsbls=dnsbls)
+
+
+@app.route('/dnsbls/bulk', methods=['POST'])
+def bulk_dnsbls():
+    entries = request.form.get('dnsbls_bulk', '')
+    lines = [line.strip() for line in entries.splitlines()]
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        for line in lines:
+            if line:
+                c.execute('INSERT OR IGNORE INTO dnsbls (domain) VALUES (?)', (line,))
+        conn.commit()
+    return redirect(url_for('manage_dnsbls'))
 
 
 @app.route('/dnsbls/delete/<int:dnsbl_id>', methods=['POST'])

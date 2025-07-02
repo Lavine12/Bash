@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Groups</h1>
+<form method="post">
+    <input type="text" name="group" placeholder="Group name" required>
+    <input type="submit" value="Add">
+</form>
+<table>
+    <tr><th>Group</th></tr>
+    {% for g in groups %}
+    <tr><td>{{ g[1] }}</td></tr>
+    {% endfor %}
+</table>
+{% endblock %}

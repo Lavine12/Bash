@@ -2,12 +2,21 @@
 {% block content %}
 <h1>Monitored IPs</h1>
 <p>Total IPs: {{ ip_count }}</p>
+<p>Next scheduled check: {{ next_run }}</p>
 <table>
-    <tr><th>IP</th><th>Last Checked</th></tr>
+    <tr><th>IP</th><th>Last Checked</th><th>Status</th><th>Action</th></tr>
     {% for ip in ips %}
     <tr>
         <td>{{ ip[1] }}</td>
         <td>{{ ip[2] or 'never' }}</td>
+        <td>
+            {% if ip[3] == 1 %}listed{% elif ip[3] == 0 %}clean{% else %}-{% endif %}
+        </td>
+        <td>
+            <form method="post" action="{{ url_for('manual_check', ip_id=ip[0]) }}">
+                <button type="submit">Check</button>
+            </form>
+        </td>
     </tr>
     {% endfor %}
 </table>

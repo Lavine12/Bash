@@ -59,6 +59,25 @@ def manage_ips():
     return render_template('ips.html', ips=ips)
 
 
+@app.route('/ips/bulk', methods=['POST'])
+def bulk_ips():
+    entries = request.form.get('ips_bulk', '')
+    lines = [line.strip() for line in entries.splitlines()]
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        for line in lines:
+            if not line:
+                continue
+            try:
+                net = ipaddress.ip_network(line, strict=False)
+                for ip in net.hosts():
+                    c.execute('INSERT OR IGNORE INTO ip_addresses (ip) VALUES (?)', (str(ip),))
+            except ValueError:
+                pass
+        conn.commit()
+    return redirect(url_for('manage_ips'))
+
+
 @app.route('/ips/delete/<int:ip_id>', methods=['POST'])
 def delete_ip(ip_id):
     with sqlite3.connect(DB_PATH) as conn:

@@ -5,6 +5,12 @@
     <input type="text" name="ip" placeholder="IP or CIDR range" required>
     <input type="submit" value="Add">
 </form>
+<h2>Bulk Add</h2>
+<form method="post" action="{{ url_for('bulk_ips') }}">
+    <textarea name="ips_bulk" rows="4" cols="40" placeholder="one IP or CIDR per line"></textarea>
+    <br>
+    <input type="submit" value="Add List">
+</form>
 <table>
     <tr><th>IP</th><th>Action</th></tr>
     {% for ip in ips %}

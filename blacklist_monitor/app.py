@@ -11,6 +11,7 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 
 app = Flask(__name__)
+CHECK_INTERVAL_HOURS = float(os.environ.get('CHECK_INTERVAL_HOURS', '6'))
 sched = BackgroundScheduler()
 
 
@@ -20,12 +21,29 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS ip_addresses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ip TEXT UNIQUE,
-            last_checked TEXT
+            last_checked TEXT,
+            group_id INTEGER
         )''')
         c.execute('''CREATE TABLE IF NOT EXISTS dnsbls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             domain TEXT UNIQUE
         )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS ip_groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS check_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip_id INTEGER,
+            dnsbl_id INTEGER,
+            listed INTEGER,
+            checked_at TEXT
+        )''')
+        # ensure group_id column exists
+        try:
+            c.execute('ALTER TABLE ip_addresses ADD COLUMN group_id INTEGER')
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
 
 
@@ -33,9 +51,18 @@ def init_db():
 def index():
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-        ips = c.execute('SELECT id, ip, last_checked FROM ip_addresses').fetchall()
+        ips = c.execute('''SELECT id, ip, last_checked,
+                                 (SELECT listed FROM check_results
+                                  WHERE ip_id=ip_addresses.id
+                                  ORDER BY checked_at DESC LIMIT 1)
+                          FROM ip_addresses''').fetchall()
         ip_count = len(ips)
-    return render_template('index.html', ips=ips, ip_count=ip_count)
+    next_run = None
+    job = sched.get_job('blacklist_check')
+    if job:
+        next_run = job.next_run_time
+    return render_template('index.html', ips=ips, ip_count=ip_count,
+                           next_run=next_run)
 
 
 @app.route('/ips', methods=['GET', 'POST'])
@@ -44,24 +71,30 @@ def manage_ips():
         c = conn.cursor()
         if request.method == 'POST':
             ip_range = request.form['ip']
+            group_id = request.form.get('group_id')
             try:
                 net = ipaddress.ip_network(ip_range, strict=False)
                 for ip in net.hosts():
                     try:
-                        c.execute('INSERT OR IGNORE INTO ip_addresses (ip) VALUES (?)', (str(ip),))
+                        c.execute('INSERT OR IGNORE INTO ip_addresses (ip, group_id) VALUES (?, ?)', (str(ip), group_id))
+                        row = c.execute('SELECT id FROM ip_addresses WHERE ip=?', (str(ip),)).fetchone()
+                        if row:
+                            check_ip(row[0])
                     except sqlite3.IntegrityError:
                         pass
             except ValueError:
                 pass
             conn.commit()
             return redirect(url_for('manage_ips'))
-        ips = c.execute('SELECT id, ip FROM ip_addresses').fetchall()
-    return render_template('ips.html', ips=ips)
+        ips = c.execute('SELECT id, ip, group_id FROM ip_addresses').fetchall()
+        groups = c.execute('SELECT id, name FROM ip_groups').fetchall()
+    return render_template('ips.html', ips=ips, groups=groups)
 
 
 @app.route('/ips/bulk', methods=['POST'])
 def bulk_ips():
     entries = request.form.get('ips_bulk', '')
+    group_id = request.form.get('group_id')
     lines = [line.strip() for line in entries.splitlines()]
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
@@ -71,7 +104,10 @@ def bulk_ips():
             try:
                 net = ipaddress.ip_network(line, strict=False)
                 for ip in net.hosts():
-                    c.execute('INSERT OR IGNORE INTO ip_addresses (ip) VALUES (?)', (str(ip),))
+                    c.execute('INSERT OR IGNORE INTO ip_addresses (ip, group_id) VALUES (?, ?)', (str(ip), group_id))
+                    row = c.execute('SELECT id FROM ip_addresses WHERE ip=?', (str(ip),)).fetchone()
+                    if row:
+                        check_ip(row[0])
             except ValueError:
                 pass
         conn.commit()
@@ -95,6 +131,7 @@ def manage_dnsbls():
             domain = request.form['dnsbl']
             c.execute('INSERT OR IGNORE INTO dnsbls (domain) VALUES (?)', (domain,))
             conn.commit()
+            check_blacklists()
             return redirect(url_for('manage_dnsbls'))
         dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
     return render_template('dnsbls.html', dnsbls=dnsbls)
@@ -110,6 +147,7 @@ def bulk_dnsbls():
             if line:
                 c.execute('INSERT OR IGNORE INTO dnsbls (domain) VALUES (?)', (line,))
         conn.commit()
+    check_blacklists()
     return redirect(url_for('manage_dnsbls'))
 
 
@@ -122,23 +160,61 @@ def delete_dnsbl(dnsbl_id):
     return redirect(url_for('manage_dnsbls'))
 
 
+@app.route('/groups', methods=['GET', 'POST'])
+def manage_groups():
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        if request.method == 'POST':
+            name = request.form['group']
+            c.execute('INSERT OR IGNORE INTO ip_groups (name) VALUES (?)', (name,))
+            conn.commit()
+            return redirect(url_for('manage_groups'))
+        groups = c.execute('SELECT id, name FROM ip_groups').fetchall()
+    return render_template('groups.html', groups=groups)
+
+
+@app.route('/ips/set_group', methods=['POST'])
+def set_group():
+    group_id = request.form.get('group_id')
+    ip_ids = request.form.getlist('ip_id')
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        for ip_id in ip_ids:
+            c.execute('UPDATE ip_addresses SET group_id=? WHERE id=?', (group_id, ip_id))
+        conn.commit()
+    return redirect(url_for('manage_ips'))
+
+
 def check_blacklists():
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-        ips = c.execute('SELECT id, ip FROM ip_addresses').fetchall()
-        dnsbls = c.execute('SELECT domain FROM dnsbls').fetchall()
+        ips = c.execute('SELECT id FROM ip_addresses').fetchall()
+        for (ip_id,) in ips:
+            check_ip(ip_id)
+        conn.commit()
 
-        for ip_id, ip in ips:
-            for (dnsbl,) in dnsbls:
-                query = '.'.join(reversed(ip.split('.'))) + '.' + dnsbl
-                try:
-                    dns.resolver.resolve(query, 'A')
-                    send_telegram_alert(ip, dnsbl)
-                except dns.resolver.NXDOMAIN:
-                    pass
-                except Exception as e:
-                    print('DNS check error:', e)
-            c.execute('UPDATE ip_addresses SET last_checked=datetime("now") WHERE id=?', (ip_id,))
+def check_ip(ip_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        row = c.execute('SELECT ip FROM ip_addresses WHERE id=?', (ip_id,)).fetchone()
+        if not row:
+            return
+        ip = row[0]
+        dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
+        for dnsbl_id, dnsbl in dnsbls:
+            query = '.'.join(reversed(ip.split('.'))) + '.' + dnsbl
+            listed = 0
+            try:
+                dns.resolver.resolve(query, 'A')
+                listed = 1
+                send_telegram_alert(ip, dnsbl)
+            except dns.resolver.NXDOMAIN:
+                listed = 0
+            except Exception as e:
+                print('DNS check error:', e)
+            c.execute('INSERT INTO check_results (ip_id, dnsbl_id, listed, checked_at) VALUES (?, ?, ?, datetime("now"))',
+                      (ip_id, dnsbl_id, listed))
+        c.execute('UPDATE ip_addresses SET last_checked=datetime("now") WHERE id=?', (ip_id,))
         conn.commit()
 
 
@@ -153,7 +229,28 @@ def send_telegram_alert(ip, dnsbl):
         print('Telegram send error:', e)
 
 
-@sched.scheduled_job('interval', hours=6)
+@app.route('/check/<int:ip_id>', methods=['POST'])
+def manual_check(ip_id):
+    check_ip(ip_id)
+    return redirect(url_for('index'))
+
+
+@app.route('/schedule', methods=['GET', 'POST'])
+def schedule_view():
+    global CHECK_INTERVAL_HOURS
+    if request.method == 'POST':
+        try:
+            hours = float(request.form.get('hours', CHECK_INTERVAL_HOURS))
+            CHECK_INTERVAL_HOURS = hours
+            sched.reschedule_job('blacklist_check', trigger='interval', hours=hours)
+        except ValueError:
+            pass
+    job = sched.get_job('blacklist_check')
+    next_run = job.next_run_time if job else None
+    return render_template('schedule.html', hours=CHECK_INTERVAL_HOURS, next_run=next_run)
+
+
+@sched.scheduled_job('interval', hours=CHECK_INTERVAL_HOURS, id='blacklist_check')
 def scheduled_check():
     check_blacklists()
 

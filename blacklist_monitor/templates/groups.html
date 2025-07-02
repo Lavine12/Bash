@@ -6,9 +6,16 @@
     <input type="submit" value="Add">
 </form>
 <table>
-    <tr><th>Group</th></tr>
+    <tr><th>Group</th><th>Action</th></tr>
     {% for g in groups %}
-    <tr><td>{{ g[1] }}</td></tr>
+    <tr>
+        <td>{{ g[1] }}</td>
+        <td>
+            <form method="post" action="{{ url_for('delete_group', group_id=g[0]) }}">
+                <button type="submit">Delete</button>
+            </form>
+        </td>
+    </tr>
     {% endfor %}
 </table>
 {% endblock %}

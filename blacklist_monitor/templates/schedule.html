@@ -2,9 +2,11 @@
 {% block content %}
 <h1>Schedule</h1>
 <form method="post">
-    <label>Check interval (hours):</label>
-    <input type="number" step="0.1" name="hours" value="{{ hours }}">
+    <label>Hours:</label>
+    <input type="number" name="hours" value="{{ hours }}" min="0">
+    <label>Minutes:</label>
+    <input type="number" name="minutes" value="{{ minutes }}" min="0" max="59">
     <input type="submit" value="Update">
 </form>
-<p>Next run: {{ next_run }}</p>
+<p>Next run: {{ next_run and next_run.strftime('%H:%M') }}</p>
 {% endblock %}

@@ -12,8 +12,22 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 
 app = Flask(__name__)
-CHECK_INTERVAL_HOURS = float(os.environ.get('CHECK_INTERVAL_HOURS', '6'))
+CHECK_INTERVAL_MINUTES = int(float(os.environ.get('CHECK_INTERVAL_HOURS', '6')) * 60)
 sched = BackgroundScheduler()
+
+
+def get_setting(key, default=''):
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        row = c.execute('SELECT value FROM settings WHERE key=?', (key,)).fetchone()
+        return row[0] if row else default
+
+
+def set_setting(key, value):
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
+        conn.commit()
 
 
 def init_db():
@@ -40,11 +54,21 @@ def init_db():
             listed INTEGER,
             checked_at TEXT
         )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )''')
         # ensure group_id column exists
         try:
             c.execute('ALTER TABLE ip_addresses ADD COLUMN group_id INTEGER')
         except sqlite3.OperationalError:
             pass
+        if TELEGRAM_TOKEN:
+            c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                      ('TELEGRAM_TOKEN', TELEGRAM_TOKEN))
+        if TELEGRAM_CHAT_ID:
+            c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                      ('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID))
         conn.commit()
 
 
@@ -52,18 +76,29 @@ def init_db():
 def index():
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-        ips = c.execute('''SELECT id, ip, last_checked,
+        ips = c.execute('''SELECT id, ip, last_checked, group_id,
                                  (SELECT MAX(listed) FROM check_results
                                   WHERE ip_id=ip_addresses.id
                                   AND checked_at=ip_addresses.last_checked)
                           FROM ip_addresses''').fetchall()
         ip_count = len(ips)
+        groups = c.execute('SELECT id, name FROM ip_groups').fetchall()
+        dnsbl_map = {}
+        for ip in ips:
+            if not ip[2]:
+                dnsbl_map[ip[0]] = []
+            else:
+                rows = c.execute('''SELECT dnsbls.domain FROM check_results
+                                    JOIN dnsbls ON dnsbls.id=check_results.dnsbl_id
+                                    WHERE check_results.ip_id=? AND check_results.checked_at=? AND check_results.listed=1''',
+                                 (ip[0], ip[2])).fetchall()
+                dnsbl_map[ip[0]] = [r[0] for r in rows]
     next_run = None
     job = sched.get_job('blacklist_check')
     if job:
         next_run = job.next_run_time
     return render_template('index.html', ips=ips, ip_count=ip_count,
-                           next_run=next_run)
+                           next_run=next_run, groups=groups, dnsbl_map=dnsbl_map)
 
 
 @app.route('/ips', methods=['GET', 'POST'])
@@ -174,6 +209,16 @@ def manage_groups():
     return render_template('groups.html', groups=groups)
 
 
+@app.route('/groups/delete/<int:group_id>', methods=['POST'])
+def delete_group(group_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        c.execute('DELETE FROM ip_groups WHERE id=?', (group_id,))
+        c.execute('UPDATE ip_addresses SET group_id=NULL WHERE group_id=?', (group_id,))
+        conn.commit()
+    return redirect(url_for('manage_groups'))
+
+
 @app.route('/ips/set_group', methods=['POST'])
 def set_group():
     group_id = request.form.get('group_id')
@@ -221,12 +266,24 @@ def check_ip(ip_id):
 
 
 def send_telegram_alert(ip, dnsbl):
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+    token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
+    chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
+    if not token or not chat_id:
         return
     text = f'IP {ip} is blacklisted in {dnsbl}'
-    url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
+    url = f'https://api.telegram.org/bot{token}/sendMessage'
     try:
-        requests.post(url, data={'chat_id': TELEGRAM_CHAT_ID, 'text': text}, timeout=5)
+        requests.post(url, data={'chat_id': chat_id, 'text': text}, timeout=5)
+    except requests.RequestException as e:
+        print('Telegram send error:', e)
+
+
+def send_test_message(token, chat_id):
+    if not token or not chat_id:
+        return
+    url = f'https://api.telegram.org/bot{token}/sendMessage'
+    try:
+        requests.post(url, data={'chat_id': chat_id, 'text': 'Test message'}, timeout=5)
     except requests.RequestException as e:
         print('Telegram send error:', e)
 
@@ -237,22 +294,56 @@ def manual_check(ip_id):
     return redirect(url_for('index'))
 
 
+@app.route('/check_selected', methods=['POST'])
+def check_selected():
+    ids = request.form.getlist('ip_id')
+    for ip_id in ids:
+        try:
+            check_ip(int(ip_id))
+        except ValueError:
+            pass
+    return redirect(url_for('index'))
+
+
+@app.route('/telegram', methods=['GET', 'POST'])
+def telegram_settings():
+    token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
+    chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
+    if request.method == 'POST':
+        action = request.form.get('action')
+        new_token = request.form.get('token', '').strip()
+        new_chat = request.form.get('chat_id', '').strip()
+        if action == 'Test':
+            send_test_message(new_token or token, new_chat or chat_id)
+        else:
+            set_setting('TELEGRAM_TOKEN', new_token)
+            set_setting('TELEGRAM_CHAT_ID', new_chat)
+            token, chat_id = new_token, new_chat
+    return render_template('telegram.html', token=token, chat_id=chat_id)
+
+
 @app.route('/schedule', methods=['GET', 'POST'])
 def schedule_view():
-    global CHECK_INTERVAL_HOURS
+    global CHECK_INTERVAL_MINUTES
     if request.method == 'POST':
         try:
-            hours = float(request.form.get('hours', CHECK_INTERVAL_HOURS))
-            CHECK_INTERVAL_HOURS = hours
-            sched.reschedule_job('blacklist_check', trigger='interval', hours=hours)
+            hours = int(request.form.get('hours', 0))
+            minutes = int(request.form.get('minutes', 0))
+            interval = hours * 60 + minutes
+            if interval <= 0:
+                interval = 1
+            CHECK_INTERVAL_MINUTES = interval
+            sched.reschedule_job('blacklist_check', trigger='interval', minutes=interval)
         except ValueError:
             pass
     job = sched.get_job('blacklist_check')
     next_run = job.next_run_time if job else None
-    return render_template('schedule.html', hours=CHECK_INTERVAL_HOURS, next_run=next_run)
+    h = CHECK_INTERVAL_MINUTES // 60
+    m = CHECK_INTERVAL_MINUTES % 60
+    return render_template('schedule.html', hours=h, minutes=m, next_run=next_run)
 
 
-@sched.scheduled_job('interval', hours=CHECK_INTERVAL_HOURS, id='blacklist_check')
+@sched.scheduled_job('interval', minutes=CHECK_INTERVAL_MINUTES, id='blacklist_check')
 def scheduled_check():
     check_blacklists()
 

@@ -159,6 +159,20 @@ def delete_ip(ip_id):
     return redirect(url_for('manage_ips'))
 
 
+@app.route('/ips/delete_selected', methods=['POST'])
+def delete_selected_ips():
+    ids = request.form.getlist('ip_id')
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        for ip_id in ids:
+            try:
+                c.execute('DELETE FROM ip_addresses WHERE id=?', (ip_id,))
+            except sqlite3.Error:
+                pass
+        conn.commit()
+    return redirect(url_for('manage_ips'))
+
+
 @app.route('/dnsbls', methods=['GET', 'POST'])
 def manage_dnsbls():
     with sqlite3.connect(DB_PATH) as conn:
@@ -192,6 +206,20 @@ def delete_dnsbl(dnsbl_id):
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         c.execute('DELETE FROM dnsbls WHERE id=?', (dnsbl_id,))
+        conn.commit()
+    return redirect(url_for('manage_dnsbls'))
+
+
+@app.route('/dnsbls/delete_selected', methods=['POST'])
+def delete_selected_dnsbls():
+    ids = request.form.getlist('dnsbl_id')
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        for dnsbl_id in ids:
+            try:
+                c.execute('DELETE FROM dnsbls WHERE id=?', (dnsbl_id,))
+            except sqlite3.Error:
+                pass
         conn.commit()
     return redirect(url_for('manage_dnsbls'))
 

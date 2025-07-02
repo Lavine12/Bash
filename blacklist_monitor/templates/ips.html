@@ -30,24 +30,50 @@
         {% endfor %}
     </select>
     <input type="submit" value="Set Group">
-    <table>
-        <tr><th></th><th>IP</th><th>Group</th><th>Action</th></tr>
-        {% for ip in ips %}
-        <tr>
-            <td><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
-            <td>{{ ip[1] }}</td>
-            <td>
-                {% for g in groups %}
-                    {% if g[0] == ip[2] %}{{ g[1] }}{% endif %}
-                {% endfor %}
-            </td>
-            <td>
-                <form method="post" action="{{ url_for('delete_ip', ip_id=ip[0]) }}">
-                    <button type="submit">Delete</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
+    {% for g in groups %}
+        <h3 onclick="toggle('grp{{ g[0] }}')" class="group-header">{{ g[1] }}</h3>
+        <div id="grp{{ g[0] }}">
+        <table>
+            <tr><th></th><th>IP</th><th>Action</th></tr>
+            {% for ip in ips %}
+                {% if ip[2] == g[0] %}
+                <tr>
+                    <td><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
+                    <td>{{ ip[1] }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('delete_ip', ip_id=ip[0]) }}">
+                            <button type="submit">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </table>
+        </div>
+    {% endfor %}
+    {% set ungroup = [] %}
+    {% for ip in ips %}{% if not ip[2] %}{% set _ = ungroup.append(ip) %}{% endif %}{% endfor %}
+    {% if ungroup %}
+        <h3 onclick="toggle('grp0')" class="group-header">Ungrouped</h3>
+        <div id="grp0">
+        <table>
+            <tr><th></th><th>IP</th><th>Action</th></tr>
+            {% for ip in ungroup %}
+            <tr>
+                <td><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
+                <td>{{ ip[1] }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('delete_ip', ip_id=ip[0]) }}">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        </div>
+    {% endif %}
 </form>
+<script>
+function toggle(id){var e=document.getElementById(id);if(e){e.style.display=e.style.display==='none'?'':'none';}}
+</script>
 {% endblock %}

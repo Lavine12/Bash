@@ -2,22 +2,49 @@
 {% block content %}
 <h1>Monitored IPs</h1>
 <p>Total IPs: {{ ip_count }}</p>
-<p>Next scheduled check: {{ next_run }}</p>
-<table>
-    <tr><th>IP</th><th>Last Checked</th><th>Status</th><th>Action</th></tr>
-    {% for ip in ips %}
-    <tr>
-        <td>{{ ip[1] }}</td>
-        <td>{{ ip[2] or 'never' }}</td>
-        <td>
-            {% if ip[3] == 1 %}listed{% elif ip[3] == 0 %}clean{% else %}-{% endif %}
-        </td>
-        <td>
-            <form method="post" action="{{ url_for('manual_check', ip_id=ip[0]) }}">
-                <button type="submit">Check</button>
-            </form>
-        </td>
-    </tr>
+<p>Next scheduled check: {{ next_run and next_run.strftime('%H:%M') }}</p>
+<form method="post" action="{{ url_for('check_selected') }}">
+    <button type="submit">Check Selected</button>
+    {% for g in groups %}
+        <h3 onclick="toggle('g{{ g[0] }}')" class="group-header">{{ g[1] }}</h3>
+        <div id="g{{ g[0] }}">
+        <table>
+            <tr><th></th><th>IP</th><th>Last Checked</th><th>Status</th><th>DNSBL</th></tr>
+            {% for ip in ips %}
+                {% if ip[3] == g[0] %}
+                <tr>
+                    <td><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
+                    <td>{{ ip[1] }}</td>
+                    <td>{{ ip[2] or 'never' }}</td>
+                    <td>{% if ip[4] == 1 %}listed{% elif ip[4] == 0 %}clean{% else %}-{% endif %}</td>
+                    <td>{{ dnsbl_map[ip[0]]|join(', ') }}</td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </table>
+        </div>
     {% endfor %}
-</table>
+    {% set ungroup = [] %}
+    {% for ip in ips %}{% if not ip[3] %}{% set _ = ungroup.append(ip) %}{% endif %}{% endfor %}
+    {% if ungroup %}
+        <h3 onclick="toggle('g0')" class="group-header">Ungrouped</h3>
+        <div id="g0">
+        <table>
+            <tr><th></th><th>IP</th><th>Last Checked</th><th>Status</th><th>DNSBL</th></tr>
+            {% for ip in ungroup %}
+            <tr>
+                <td><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
+                <td>{{ ip[1] }}</td>
+                <td>{{ ip[2] or 'never' }}</td>
+                <td>{% if ip[4] == 1 %}listed{% elif ip[4] == 0 %}clean{% else %}-{% endif %}</td>
+                <td>{{ dnsbl_map[ip[0]]|join(', ') }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        </div>
+    {% endif %}
+</form>
+<script>
+function toggle(id){var e=document.getElementById(id);if(e){e.style.display=e.style.display==='none'?'':'none';}}
+</script>
 {% endblock %}

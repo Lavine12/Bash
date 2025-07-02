@@ -5,6 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for
 from apscheduler.schedulers.background import BackgroundScheduler
 import ipaddress
 import dns.resolver
+import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data.db')
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
@@ -52,9 +53,9 @@ def index():
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         ips = c.execute('''SELECT id, ip, last_checked,
-                                 (SELECT listed FROM check_results
+                                 (SELECT MAX(listed) FROM check_results
                                   WHERE ip_id=ip_addresses.id
-                                  ORDER BY checked_at DESC LIMIT 1)
+                                  AND checked_at=ip_addresses.last_checked)
                           FROM ip_addresses''').fetchall()
         ip_count = len(ips)
     next_run = None
@@ -201,6 +202,7 @@ def check_ip(ip_id):
             return
         ip = row[0]
         dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
+        timestamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         for dnsbl_id, dnsbl in dnsbls:
             query = '.'.join(reversed(ip.split('.'))) + '.' + dnsbl
             listed = 0
@@ -212,9 +214,9 @@ def check_ip(ip_id):
                 listed = 0
             except Exception as e:
                 print('DNS check error:', e)
-            c.execute('INSERT INTO check_results (ip_id, dnsbl_id, listed, checked_at) VALUES (?, ?, ?, datetime("now"))',
-                      (ip_id, dnsbl_id, listed))
-        c.execute('UPDATE ip_addresses SET last_checked=datetime("now") WHERE id=?', (ip_id,))
+            c.execute('INSERT INTO check_results (ip_id, dnsbl_id, listed, checked_at) VALUES (?, ?, ?, ?)',
+                      (ip_id, dnsbl_id, listed, timestamp))
+        c.execute('UPDATE ip_addresses SET last_checked=? WHERE id=?', (timestamp, ip_id))
         conn.commit()
 
 

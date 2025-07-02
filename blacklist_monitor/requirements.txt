@@ -1,0 +1,4 @@
+Flask
+APScheduler
+dnspython
+requests

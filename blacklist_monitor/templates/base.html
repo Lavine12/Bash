@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+    <title>{{ title or 'Blacklist Monitor' }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+    <div class="sidebar">
+        <h2>Monitor</h2>
+        <ul>
+            <li><a href="{{ url_for('index') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('manage_ips') }}">IPs</a></li>
+            <li><a href="{{ url_for('manage_dnsbls') }}">DNSBLs</a></li>
+        </ul>
+    </div>
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+</div>
+</body>
+</html>

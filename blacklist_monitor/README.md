@@ -4,10 +4,10 @@ This simple Flask application monitors a list of IP addresses against a set of D
 
 Features:
 - Add or remove single IPs or CIDR ranges.
-- Add or remove DNSBL domains.
+- Add or remove DNSBL domains (bulk import supported).
 - Periodic checks every 6 hours.
 - Alerts are sent to a Telegram chat when an IP is blacklisted.
-- Web interface shows all monitored IPs and their last check time.
+- Web interface shows all monitored IPs and their last check time with a side navigation menu.
 
 ## Setup
 

@@ -11,17 +11,16 @@
     <br>
     <input type="submit" value="Add List">
 </form>
-<table>
-    <tr><th>DNSBL</th><th>Action</th></tr>
-    {% for dnsbl in dnsbls %}
-    <tr>
-        <td>{{ dnsbl[1] }}</td>
-        <td>
-            <form method="post" action="{{ url_for('delete_dnsbl', dnsbl_id=dnsbl[0]) }}">
-                <button type="submit">Delete</button>
-            </form>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+<form method="post" action="{{ url_for('delete_selected_dnsbls') }}">
+    <button type="submit">Delete Selected</button>
+    <table>
+        <tr><th></th><th>DNSBL</th></tr>
+        {% for dnsbl in dnsbls %}
+        <tr>
+            <td><input type="checkbox" name="dnsbl_id" value="{{ dnsbl[0] }}"></td>
+            <td>{{ dnsbl[1] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</form>
 {% endblock %}

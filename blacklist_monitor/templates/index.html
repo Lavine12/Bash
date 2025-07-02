@@ -9,7 +9,7 @@
         <h3 onclick="toggle('g{{ g[0] }}')" class="group-header">{{ g[1] }}</h3>
         <div id="g{{ g[0] }}">
         <table>
-            <tr><th></th><th>IP</th><th>Last Checked</th><th>Status</th><th>DNSBL</th></tr>
+            <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Last Checked</th><th>Status</th><th>DNSBL</th></tr>
             {% for ip in ips %}
                 {% if ip[3] == g[0] %}
                 <tr>
@@ -30,7 +30,7 @@
         <h3 onclick="toggle('g0')" class="group-header">Ungrouped</h3>
         <div id="g0">
         <table>
-            <tr><th></th><th>IP</th><th>Last Checked</th><th>Status</th><th>DNSBL</th></tr>
+            <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Last Checked</th><th>Status</th><th>DNSBL</th></tr>
             {% for ip in ungroup %}
             <tr>
                 <td><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
@@ -46,5 +46,6 @@
 </form>
 <script>
 function toggle(id){var e=document.getElementById(id);if(e){e.style.display=e.style.display==='none'?'':'none';}}
+function toggleAll(src){var tbl=src.closest('table');if(!tbl)return;var boxes=tbl.querySelectorAll('input[type="checkbox"][name="ip_id"]');boxes.forEach(function(cb){cb.checked=src.checked;});}
 </script>
 {% endblock %}

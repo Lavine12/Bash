@@ -26,3 +26,24 @@ Features:
    ```
 
 The web interface will be available at `http://localhost:5000`.
+
+## Docker
+
+You can also run the application using Docker. Build the image from the
+`blacklist_monitor` directory:
+
+```bash
+docker build -t blacklist-monitor .
+```
+
+Then start a container while providing the required environment variables and
+exposing port `5000`:
+
+```bash
+docker run -p 5000:5000 \
+  -e TELEGRAM_TOKEN=<your token> \
+  -e TELEGRAM_CHAT_ID=<your chat id> \
+  blacklist-monitor
+```
+
+The web interface will then be available at `http://localhost:5000`.

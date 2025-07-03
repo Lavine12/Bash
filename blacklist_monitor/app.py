@@ -264,6 +264,17 @@ def delete_group(group_id):
     return redirect(url_for('manage_groups'))
 
 
+@app.route('/groups/update/<int:group_id>', methods=['POST'])
+def update_group(group_id):
+    new_name = request.form.get('group_name', '').strip()
+    if new_name:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            c.execute('UPDATE ip_groups SET name=? WHERE id=?', (new_name, group_id))
+            conn.commit()
+    return redirect(url_for('manage_groups'))
+
+
 @app.route('/ips/set_group', methods=['POST'])
 def set_group():
     group_id = request.form.get('group_id') or None

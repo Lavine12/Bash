@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1>Schedule</h1>
+<p>Current schedule: {{ hours }} hours {{ minutes }} minutes</p>
 <form method="post">
     <label>Hours:</label>
-    <input type="number" name="hours" value="0" placeholder="{{ hours }}" min="0" class="telegram-input">
+    <input type="number" name="hours" value="{{ hours }}" min="0" class="telegram-input">
     <label>Minutes:</label>
-    <input type="number" name="minutes" value="0" placeholder="{{ minutes }}" min="0" max="59" class="telegram-input">
+    <input type="number" name="minutes" value="{{ minutes }}" min="0" max="59" class="telegram-input">
     <input type="submit" value="Update">
 </form>
 <p>Next run: {{ next_run and next_run.strftime('%H:%M') }}</p>

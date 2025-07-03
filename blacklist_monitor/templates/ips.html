@@ -25,6 +25,7 @@
 </form>
 <form method="post" id="group-form" action="{{ url_for('set_group') }}">
     <select name="group_id">
+        <option value="">Ungroup</option>
         {% for g in groups %}
         <option value="{{ g[0] }}">{{ g[1] }}</option>
         {% endfor %}
@@ -65,7 +66,8 @@
     {% endif %}
 </form>
 <script>
-function toggle(id){var e=document.getElementById(id);if(e){e.style.display=e.style.display==='none'?'':'none';}}
+function toggle(id){var e=document.getElementById(id);if(!e)return;var s=e.style.display==='none'?'':'none';e.style.display=s;localStorage.setItem('collapse_'+id,s);}
+window.addEventListener('load',function(){document.querySelectorAll('div[id^="grp"]').forEach(function(el){var s=localStorage.getItem('collapse_'+el.id);if(s!==null){el.style.display=s;}});});
 function toggleAll(src){var tbl=src.closest('table');if(!tbl)return;var boxes=tbl.querySelectorAll('input[type="checkbox"][name="ip_id"]');boxes.forEach(function(cb){cb.checked=src.checked;});}
 </script>
 {% endblock %}

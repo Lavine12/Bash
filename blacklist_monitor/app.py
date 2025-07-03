@@ -55,6 +55,12 @@ def init_db():
             listed INTEGER,
             checked_at TEXT
         )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS telegram_chats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token TEXT,
+            chat_id TEXT,
+            active INTEGER DEFAULT 1
+        )''')
         c.execute('''CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT
@@ -347,26 +353,41 @@ def check_ip(ip_id):
 
 
 def send_telegram_alert(message):
-    token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
-    chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
-    if not token or not chat_id:
-        return
     text = message
-    url = f'https://api.telegram.org/bot{token}/sendMessage'
-    try:
-        requests.post(url, data={'chat_id': chat_id, 'text': text}, timeout=5)
-    except requests.RequestException as e:
-        print('Telegram send error:', e)
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        rows = c.execute('SELECT token, chat_id FROM telegram_chats WHERE active=1').fetchall()
+    if not rows:
+        token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
+        chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
+        if token and chat_id:
+            rows = [(token, chat_id)]
+    for token, chat_id in rows:
+        url = f'https://api.telegram.org/bot{token}/sendMessage'
+        try:
+            requests.post(url, data={'chat_id': chat_id, 'text': text}, timeout=5)
+        except requests.RequestException as e:
+            print('Telegram send error:', e)
 
 
-def send_test_message(token, chat_id):
-    if not token or not chat_id:
-        return
-    url = f'https://api.telegram.org/bot{token}/sendMessage'
-    try:
-        requests.post(url, data={'chat_id': chat_id, 'text': 'Test message'}, timeout=5)
-    except requests.RequestException as e:
-        print('Telegram send error:', e)
+def send_test_message(token=None, chat_id=None, message='Test message'):
+    if token and chat_id:
+        rows = [(token, chat_id)]
+    else:
+        with sqlite3.connect(DB_PATH) as conn:
+            c = conn.cursor()
+            rows = c.execute('SELECT token, chat_id FROM telegram_chats WHERE active=1').fetchall()
+        if not rows:
+            t = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
+            c_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
+            if t and c_id:
+                rows = [(t, c_id)]
+    for tok, cid in rows:
+        url = f'https://api.telegram.org/bot{tok}/sendMessage'
+        try:
+            requests.post(url, data={'chat_id': cid, 'text': message}, timeout=5)
+        except requests.RequestException as e:
+            print('Telegram send error:', e)
 
 
 @app.route('/check/<int:ip_id>', methods=['POST'])
@@ -388,41 +409,55 @@ def check_selected():
 
 @app.route('/telegram', methods=['GET', 'POST'])
 def telegram_settings():
-    token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
-    chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
     alert_message = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
     resend_period = int(get_setting('RESEND_PERIOD', '0'))
-    if request.method == 'POST':
-        action = request.form.get('action')
-        new_token = request.form.get('token', '').strip()
-        new_chat = request.form.get('chat_id', '').strip()
-        new_msg = request.form.get('alert_message', '').strip()
-        try:
-            rh = int(request.form.get('resend_hours', 0))
-            rm = int(request.form.get('resend_minutes', 0))
-            period_val = rh * 60 + rm
-        except ValueError:
-            period_val = resend_period
-        if action == 'Test':
-            send_test_message(new_token or token, new_chat or chat_id)
-        else:
-            if new_token:
-                set_setting('TELEGRAM_TOKEN', new_token)
-                token = new_token
-            if new_chat:
-                set_setting('TELEGRAM_CHAT_ID', new_chat)
-                chat_id = new_chat
-            if new_msg:
-                set_setting('ALERT_MESSAGE', new_msg)
-                alert_message = new_msg
-            set_setting('RESEND_PERIOD', str(period_val))
-            resend_period = period_val
-            new_token = ''
-            new_chat = ''
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        if request.method == 'POST':
+            action = request.form.get('action')
+            if action == 'Add':
+                tok = request.form.get('token', '').strip()
+                chat = request.form.get('chat_id', '').strip()
+                active = 1 if request.form.get('active') == 'on' else 0
+                if tok and chat:
+                    c.execute('INSERT INTO telegram_chats (token, chat_id, active) VALUES (?, ?, ?)',
+                              (tok, chat, active))
+            elif action == 'Update':
+                row_id = request.form.get('row_id')
+                tok = request.form.get('token', '').strip()
+                chat = request.form.get('chat_id', '').strip()
+                active = 1 if request.form.get('active') == 'on' else 0
+                c.execute('UPDATE telegram_chats SET token=?, chat_id=?, active=? WHERE id=?',
+                          (tok, chat, active, row_id))
+            elif action == 'Delete':
+                row_id = request.form.get('row_id')
+                c.execute('DELETE FROM telegram_chats WHERE id=?', (row_id,))
+            elif action == 'SaveMsg':
+                new_msg = request.form.get('alert_message', '').strip()
+                if new_msg:
+                    set_setting('ALERT_MESSAGE', new_msg)
+                    alert_message = new_msg
+                try:
+                    rh = int(request.form.get('resend_hours', 0))
+                    rm = int(request.form.get('resend_minutes', 0))
+                    period_val = rh * 60 + rm
+                except ValueError:
+                    period_val = resend_period
+                set_setting('RESEND_PERIOD', str(period_val))
+                resend_period = period_val
+            elif action == 'Test':
+                msg = request.form.get('alert_message', '').strip() or 'Test Message'
+                tok = request.form.get('token')
+                chat = request.form.get('chat_id')
+                if tok and chat:
+                    send_test_message(tok.strip(), chat.strip(), msg)
+                else:
+                    send_test_message(message=msg)
+        conn.commit()
+        chats = c.execute('SELECT id, token, chat_id, active FROM telegram_chats').fetchall()
     rh_disp = resend_period // 60
     rm_disp = resend_period % 60
-    return render_template('telegram.html', token_display=token,
-                           chat_id_display=chat_id, message=alert_message,
+    return render_template('telegram.html', chats=chats, message=alert_message,
                            resend_hours=rh_disp, resend_minutes=rm_disp)
 
 
@@ -434,10 +469,18 @@ def schedule_view():
             hours = int(request.form.get('hours', 0))
             minutes = int(request.form.get('minutes', 0))
             interval = hours * 60 + minutes
-            if interval <= 0:
-                interval = 1
             CHECK_INTERVAL_MINUTES = interval
-            sched.reschedule_job('blacklist_check', trigger='interval', minutes=interval)
+            if interval <= 0:
+                try:
+                    sched.pause_job('blacklist_check')
+                except Exception:
+                    pass
+            else:
+                try:
+                    sched.reschedule_job('blacklist_check', trigger='interval', minutes=interval)
+                    sched.resume_job('blacklist_check')
+                except Exception:
+                    pass
         except ValueError:
             pass
     job = sched.get_job('blacklist_check')
@@ -449,7 +492,8 @@ def schedule_view():
 
 @sched.scheduled_job('interval', minutes=max(CHECK_INTERVAL_MINUTES, 1), id='blacklist_check')
 def scheduled_check():
-    check_blacklists()
+    if CHECK_INTERVAL_MINUTES > 0:
+        check_blacklists()
 
 
 if __name__ == '__main__':

@@ -2,12 +2,12 @@
 {% block content %}
 <h1>DNSBLs</h1>
 <form method="post">
-    <input type="text" name="dnsbl" placeholder="dnsbl.example.com" required>
+    <input type="text" name="dnsbl" placeholder="dnsbl.example.com" required class="telegram-input">
     <input type="submit" value="Add">
 </form>
 <h2>Bulk Add</h2>
 <form method="post" action="{{ url_for('bulk_dnsbls') }}">
-    <textarea name="dnsbls_bulk" rows="4" cols="40" placeholder="one DNSBL per line"></textarea>
+    <textarea name="dnsbls_bulk" rows="4" cols="40" placeholder="one DNSBL per line" class="telegram-input"></textarea>
     <br>
     <input type="submit" value="Add List">
 </form>

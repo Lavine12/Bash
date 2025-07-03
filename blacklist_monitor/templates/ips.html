@@ -2,7 +2,7 @@
 {% block content %}
 <h1>IP Addresses</h1>
 <form method="post">
-    <input type="text" name="ip" placeholder="IP or CIDR range" required>
+    <input type="text" name="ip" placeholder="IP or CIDR range" required class="telegram-input">
     <select name="group_id">
         <option value="">No Group</option>
         {% for g in groups %}
@@ -13,7 +13,7 @@
 </form>
 <h2>Bulk Add</h2>
 <form method="post" action="{{ url_for('bulk_ips') }}">
-    <textarea name="ips_bulk" rows="4" cols="40" placeholder="one IP or CIDR per line"></textarea>
+    <textarea name="ips_bulk" rows="4" cols="40" placeholder="one IP or CIDR per line" class="telegram-input"></textarea>
     <br>
     <select name="group_id">
         <option value="">No Group</option>

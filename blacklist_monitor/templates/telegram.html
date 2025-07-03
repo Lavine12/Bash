@@ -1,8 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1>Telegram Settings</h1>
-<p>Saved Token: {{ token_display }}</p>
-<p>Saved Chat ID: {{ chat_id_display }}</p>
 <form method="post">
     <label>Bot Token:</label>
     <input type="text" name="token" class="telegram-input">
@@ -13,9 +11,15 @@
     <label>Alert Message:</label>
     <input type="text" name="alert_message" value="{{ message }}" class="telegram-input">
     <br>
-    <label><input type="checkbox" name="resend_periodic" {% if resend_periodic %}checked{% endif %}> Resend periodic alerts</label>
+    <label>Resend period:</label>
+    <input type="number" name="resend_hours" value="0" placeholder="{{ resend_hours }}" min="0"> h
+    <input type="number" name="resend_minutes" value="0" placeholder="{{ resend_minutes }}" min="0" max="59"> m (0 = none)
     <br>
     <button type="submit" name="action" value="Save">Save</button>
     <button type="submit" name="action" value="Test">Test</button>
 </form>
+<table>
+    <tr><th>Saved Token</th><td>{{ token_display }}</td></tr>
+    <tr><th>Saved Chat ID</th><td>{{ chat_id_display }}</td></tr>
+</table>
 {% endblock %}

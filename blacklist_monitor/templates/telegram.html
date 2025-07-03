@@ -31,8 +31,10 @@
     <input type="text" name="alert_message" value="{{ message }}" class="telegram-input">
     <br>
     <label>Resend period:</label>
-    <input type="number" name="resend_hours" value="0" placeholder="{{ resend_hours }}" min="0" class="telegram-input"> h
-    <input type="number" name="resend_minutes" value="0" placeholder="{{ resend_minutes }}" min="0" max="59" class="telegram-input"> m (0 = none)
+    <input type="number" name="resend_hours" value="0" placeholder="{{ resend_hours }}" min="0" class="telegram-input"> hours
+    <input type="number" name="resend_minutes" value="0" placeholder="{{ resend_minutes }}" min="0" max="59" class="telegram-input"> minutes (0 = none)
+    <br>
+    <small>Current resend period: {{ resend_hours }} hours {{ resend_minutes }} minutes</small>
     <br>
     <button type="submit">Save</button>
     <button type="submit" name="action" value="Test">Test</button>

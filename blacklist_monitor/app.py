@@ -12,7 +12,7 @@ TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 
 app = Flask(__name__)
-CHECK_INTERVAL_MINUTES = int(float(os.environ.get('CHECK_INTERVAL_HOURS', '6')) * 60)
+CHECK_INTERVAL_MINUTES = int(float(os.environ.get('CHECK_INTERVAL_HOURS', '0')) * 60)
 sched = BackgroundScheduler()
 
 
@@ -72,6 +72,8 @@ def init_db():
                   ('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('RESEND_PERIODIC', '1'))
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('RESEND_PERIOD', '0'))
         if TELEGRAM_TOKEN:
             c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                       ('TELEGRAM_TOKEN', TELEGRAM_TOKEN))
@@ -320,13 +322,18 @@ def check_ip(ip_id):
                 dns.resolver.resolve(query, 'A')
                 listed = 1
                 alert_message = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
-                resend = int(get_setting('RESEND_PERIODIC', '1'))
+                period = int(get_setting('RESEND_PERIOD', '0'))
                 send = True
-                if not resend:
-                    prev = c.execute('''SELECT listed FROM check_results WHERE ip_id=? AND dnsbl_id=? ORDER BY checked_at DESC LIMIT 1''',
-                                     (ip_id, dnsbl_id)).fetchone()
-                    if prev and prev[0] == 1:
+                prev = c.execute('''SELECT listed, checked_at FROM check_results WHERE ip_id=? AND dnsbl_id=? AND listed=1 ORDER BY checked_at DESC LIMIT 1''',
+                                 (ip_id, dnsbl_id)).fetchone()
+                if period == 0:
+                    if prev:
                         send = False
+                else:
+                    if prev:
+                        prev_time = datetime.datetime.strptime(prev[1], '%Y-%m-%d %H:%M:%S')
+                        if datetime.datetime.utcnow() - prev_time < datetime.timedelta(minutes=period):
+                            send = False
                 if send:
                     send_telegram_alert(alert_message.format(ip=ip, dnsbl=dnsbl))
             except dns.resolver.NXDOMAIN:
@@ -384,13 +391,18 @@ def telegram_settings():
     token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
     chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
     alert_message = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
-    resend = int(get_setting('RESEND_PERIODIC', '1'))
+    resend_period = int(get_setting('RESEND_PERIOD', '0'))
     if request.method == 'POST':
         action = request.form.get('action')
         new_token = request.form.get('token', '').strip()
         new_chat = request.form.get('chat_id', '').strip()
         new_msg = request.form.get('alert_message', '').strip()
-        resend_flag = 1 if request.form.get('resend_periodic') == 'on' else 0
+        try:
+            rh = int(request.form.get('resend_hours', 0))
+            rm = int(request.form.get('resend_minutes', 0))
+            period_val = rh * 60 + rm
+        except ValueError:
+            period_val = resend_period
         if action == 'Test':
             send_test_message(new_token or token, new_chat or chat_id)
         else:
@@ -403,13 +415,15 @@ def telegram_settings():
             if new_msg:
                 set_setting('ALERT_MESSAGE', new_msg)
                 alert_message = new_msg
-            set_setting('RESEND_PERIODIC', str(resend_flag))
-            resend = resend_flag
+            set_setting('RESEND_PERIOD', str(period_val))
+            resend_period = period_val
             new_token = ''
             new_chat = ''
+    rh_disp = resend_period // 60
+    rm_disp = resend_period % 60
     return render_template('telegram.html', token_display=token,
                            chat_id_display=chat_id, message=alert_message,
-                           resend_periodic=resend)
+                           resend_hours=rh_disp, resend_minutes=rm_disp)
 
 
 @app.route('/schedule', methods=['GET', 'POST'])
@@ -433,7 +447,7 @@ def schedule_view():
     return render_template('schedule.html', hours=h, minutes=m, next_run=next_run)
 
 
-@sched.scheduled_job('interval', minutes=CHECK_INTERVAL_MINUTES, id='blacklist_check')
+@sched.scheduled_job('interval', minutes=max(CHECK_INTERVAL_MINUTES, 1), id='blacklist_check')
 def scheduled_check():
     check_blacklists()
 

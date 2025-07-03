@@ -124,7 +124,7 @@ def manage_ips():
         c = conn.cursor()
         if request.method == 'POST':
             ip_range = request.form['ip']
-            group_id = request.form.get('group_id')
+            group_id = request.form.get('group_id') or None
             try:
                 net = ipaddress.ip_network(ip_range, strict=False)
                 for ip in net.hosts():
@@ -147,7 +147,7 @@ def manage_ips():
 @app.route('/ips/bulk', methods=['POST'])
 def bulk_ips():
     entries = request.form.get('ips_bulk', '')
-    group_id = request.form.get('group_id')
+    group_id = request.form.get('group_id') or None
     lines = [line.strip() for line in entries.splitlines()]
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
@@ -266,7 +266,7 @@ def delete_group(group_id):
 
 @app.route('/ips/set_group', methods=['POST'])
 def set_group():
-    group_id = request.form.get('group_id')
+    group_id = request.form.get('group_id') or None
     ip_ids = request.form.getlist('ip_id')
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
@@ -315,8 +315,8 @@ def check_blacklists():
 def check_ip(ip_id):
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-        row = c.execute('SELECT ip FROM ip_addresses WHERE id=?', (ip_id,)).fetchone()
-        if not row:
+        row = c.execute('SELECT ip, excluded FROM ip_addresses WHERE id=?', (ip_id,)).fetchone()
+        if not row or row[1]:
             return
         ip = row[0]
         dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
@@ -414,7 +414,8 @@ def telegram_settings():
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         if request.method == 'POST':
-            action = request.form.get('action')
+            actions = request.form.getlist('action')
+            action = actions[-1] if actions else ''
             if action == 'Add':
                 tok = request.form.get('token', '').strip()
                 chat = request.form.get('chat_id', '').strip()
@@ -447,12 +448,7 @@ def telegram_settings():
                 resend_period = period_val
             elif action == 'Test':
                 msg = request.form.get('alert_message', '').strip() or 'Test Message'
-                tok = request.form.get('token')
-                chat = request.form.get('chat_id')
-                if tok and chat:
-                    send_test_message(tok.strip(), chat.strip(), msg)
-                else:
-                    send_test_message(message=msg)
+                send_test_message(message=msg)
         conn.commit()
         chats = c.execute('SELECT id, token, chat_id, active FROM telegram_chats').fetchall()
     rh_disp = resend_period // 60
@@ -470,17 +466,15 @@ def schedule_view():
             minutes = int(request.form.get('minutes', 0))
             interval = hours * 60 + minutes
             CHECK_INTERVAL_MINUTES = interval
+            job = sched.get_job('blacklist_check')
             if interval <= 0:
-                try:
-                    sched.pause_job('blacklist_check')
-                except Exception:
-                    pass
+                if job:
+                    sched.remove_job('blacklist_check')
             else:
-                try:
+                if job:
                     sched.reschedule_job('blacklist_check', trigger='interval', minutes=interval)
-                    sched.resume_job('blacklist_check')
-                except Exception:
-                    pass
+                else:
+                    sched.add_job(scheduled_check, 'interval', minutes=interval, id='blacklist_check')
         except ValueError:
             pass
     job = sched.get_job('blacklist_check')
@@ -490,7 +484,6 @@ def schedule_view():
     return render_template('schedule.html', hours=h, minutes=m, next_run=next_run)
 
 
-@sched.scheduled_job('interval', minutes=max(CHECK_INTERVAL_MINUTES, 1), id='blacklist_check')
 def scheduled_check():
     if CHECK_INTERVAL_MINUTES > 0:
         check_blacklists()
@@ -498,5 +491,7 @@ def scheduled_check():
 
 if __name__ == '__main__':
     init_db()
+    if CHECK_INTERVAL_MINUTES > 0:
+        sched.add_job(scheduled_check, 'interval', minutes=CHECK_INTERVAL_MINUTES, id='blacklist_check')
     sched.start()
     app.run(host='0.0.0.0', port=5000)

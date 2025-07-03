@@ -34,7 +34,7 @@
     <button type="submit" formaction="{{ url_for('delete_selected_ips') }}">Delete Selected</button>
     {% for g in groups %}
         <h3 onclick="toggle('grp{{ g[0] }}')" class="group-header">{{ g[1] }}</h3>
-        <div id="grp{{ g[0] }}">
+        <div id="grp{{ g[0] }}" data-collapse>
         <table>
             <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th></tr>
             {% for ip in ips %}
@@ -52,7 +52,7 @@
     {% for ip in ips %}{% if not ip[2] %}{% set _ = ungroup.append(ip) %}{% endif %}{% endfor %}
     {% if ungroup %}
         <h3 onclick="toggle('grp0')" class="group-header">Ungrouped</h3>
-        <div id="grp0">
+        <div id="grp0" data-collapse>
         <table>
             <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th></tr>
             {% for ip in ungroup %}
@@ -65,9 +65,4 @@
         </div>
     {% endif %}
 </form>
-<script>
-function toggle(id){var e=document.getElementById(id);if(!e)return;var s=e.style.display==='none'?'':'none';e.style.display=s;localStorage.setItem('collapse_'+id,s);}
-window.addEventListener('load',function(){document.querySelectorAll('div[id^="grp"]').forEach(function(el){var s=localStorage.getItem('collapse_'+el.id);if(s!==null){el.style.display=s;}});});
-function toggleAll(src){var tbl=src.closest('table');if(!tbl)return;var boxes=tbl.querySelectorAll('input[type="checkbox"][name="ip_id"]');boxes.forEach(function(cb){cb.checked=src.checked;});}
-</script>
 {% endblock %}

@@ -63,3 +63,9 @@ button, input[type="submit"] {
     border: 1px solid #ccc;
     border-radius: 4px;
 }
+.row-listed { background-color: #ffe6e6; }
+.row-clean { background-color: #e6ffe6; }
+.row-unknown { background-color: #f9f9f9; }
+.row-excluded { opacity: 0.6; }
+.status-listed { color: #b00000; font-weight: bold; }
+.status-clean { color: #009000; }

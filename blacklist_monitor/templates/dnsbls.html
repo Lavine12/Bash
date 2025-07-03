@@ -14,7 +14,7 @@
 <form method="post" action="{{ url_for('delete_selected_dnsbls') }}">
     <button type="submit">Delete Selected</button>
     <table>
-        <tr><th></th><th>DNSBL</th></tr>
+        <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>DNSBL</th></tr>
         {% for dnsbl in dnsbls %}
         <tr>
             <td><input type="checkbox" name="dnsbl_id" value="{{ dnsbl[0] }}"></td>
@@ -23,4 +23,7 @@
         {% endfor %}
     </table>
 </form>
+<script>
+function toggleAll(src){var tbl=src.closest('table');if(!tbl)return;var boxes=tbl.querySelectorAll('input[type="checkbox"][name="dnsbl_id"]');boxes.forEach(function(cb){cb.checked=src.checked;});}
+</script>
 {% endblock %}

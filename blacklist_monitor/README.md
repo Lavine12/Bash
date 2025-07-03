@@ -20,6 +20,7 @@ Features:
    ```
 2. Set the environment variables `TELEGRAM_TOKEN` and `TELEGRAM_CHAT_ID` for Telegram alerts.
    Optionally set `CHECK_INTERVAL_HOURS` to change the default check interval.
+   `DB_TIMEOUT` can be used to adjust the SQLite write timeout (default is 30 seconds).
 3. Run the app:
    ```bash
    python app.py

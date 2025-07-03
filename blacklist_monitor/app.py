@@ -8,6 +8,7 @@ import dns.resolver
 import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data.db')
+DB_TIMEOUT = int(os.environ.get('DB_TIMEOUT', '30'))
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 
@@ -16,22 +17,27 @@ CHECK_INTERVAL_MINUTES = int(float(os.environ.get('CHECK_INTERVAL_HOURS', '6')) 
 sched = BackgroundScheduler()
 
 
+def get_conn():
+    """Return a SQLite connection with an increased timeout."""
+    return sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT)
+
+
 def get_setting(key, default=''):
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         row = c.execute('SELECT value FROM settings WHERE key=?', (key,)).fetchone()
         return row[0] if row else default
 
 
 def set_setting(key, value):
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         c.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
         conn.commit()
 
 
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS ip_addresses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +80,7 @@ def init_db():
 
 @app.route('/')
 def index():
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         ips = c.execute('''SELECT id, ip, last_checked, group_id,
                                  (SELECT MAX(listed) FROM check_results
@@ -103,7 +109,7 @@ def index():
 
 @app.route('/ips', methods=['GET', 'POST'])
 def manage_ips():
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         if request.method == 'POST':
             ip_range = request.form['ip']
@@ -132,7 +138,7 @@ def bulk_ips():
     entries = request.form.get('ips_bulk', '')
     group_id = request.form.get('group_id')
     lines = [line.strip() for line in entries.splitlines()]
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         for line in lines:
             if not line:
@@ -152,7 +158,7 @@ def bulk_ips():
 
 @app.route('/ips/delete/<int:ip_id>', methods=['POST'])
 def delete_ip(ip_id):
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         c.execute('DELETE FROM ip_addresses WHERE id=?', (ip_id,))
         conn.commit()
@@ -162,7 +168,7 @@ def delete_ip(ip_id):
 @app.route('/ips/delete_selected', methods=['POST'])
 def delete_selected_ips():
     ids = request.form.getlist('ip_id')
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         for ip_id in ids:
             try:
@@ -175,7 +181,7 @@ def delete_selected_ips():
 
 @app.route('/dnsbls', methods=['GET', 'POST'])
 def manage_dnsbls():
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         if request.method == 'POST':
             domain = request.form['dnsbl']
@@ -191,7 +197,7 @@ def manage_dnsbls():
 def bulk_dnsbls():
     entries = request.form.get('dnsbls_bulk', '')
     lines = [line.strip() for line in entries.splitlines()]
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         for line in lines:
             if line:
@@ -203,7 +209,7 @@ def bulk_dnsbls():
 
 @app.route('/dnsbls/delete/<int:dnsbl_id>', methods=['POST'])
 def delete_dnsbl(dnsbl_id):
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         c.execute('DELETE FROM dnsbls WHERE id=?', (dnsbl_id,))
         conn.commit()
@@ -213,7 +219,7 @@ def delete_dnsbl(dnsbl_id):
 @app.route('/dnsbls/delete_selected', methods=['POST'])
 def delete_selected_dnsbls():
     ids = request.form.getlist('dnsbl_id')
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         for dnsbl_id in ids:
             try:
@@ -226,7 +232,7 @@ def delete_selected_dnsbls():
 
 @app.route('/groups', methods=['GET', 'POST'])
 def manage_groups():
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         if request.method == 'POST':
             name = request.form['group']
@@ -239,10 +245,25 @@ def manage_groups():
 
 @app.route('/groups/delete/<int:group_id>', methods=['POST'])
 def delete_group(group_id):
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         c.execute('DELETE FROM ip_groups WHERE id=?', (group_id,))
         c.execute('UPDATE ip_addresses SET group_id=NULL WHERE group_id=?', (group_id,))
+        conn.commit()
+    return redirect(url_for('manage_groups'))
+
+
+@app.route('/groups/delete_selected', methods=['POST'])
+def delete_selected_groups():
+    ids = request.form.getlist('group_id')
+    with get_conn() as conn:
+        c = conn.cursor()
+        for gid in ids:
+            try:
+                c.execute('DELETE FROM ip_groups WHERE id=?', (gid,))
+                c.execute('UPDATE ip_addresses SET group_id=NULL WHERE group_id=?', (gid,))
+            except sqlite3.Error:
+                pass
         conn.commit()
     return redirect(url_for('manage_groups'))
 
@@ -251,7 +272,7 @@ def delete_group(group_id):
 def set_group():
     group_id = request.form.get('group_id')
     ip_ids = request.form.getlist('ip_id')
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         for ip_id in ip_ids:
             c.execute('UPDATE ip_addresses SET group_id=? WHERE id=?', (group_id, ip_id))
@@ -260,7 +281,7 @@ def set_group():
 
 
 def check_blacklists():
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         ips = c.execute('SELECT id FROM ip_addresses').fetchall()
         for (ip_id,) in ips:
@@ -268,7 +289,7 @@ def check_blacklists():
         conn.commit()
 
 def check_ip(ip_id):
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_conn() as conn:
         c = conn.cursor()
         row = c.execute('SELECT ip FROM ip_addresses WHERE id=?', (ip_id,)).fetchone()
         if not row:

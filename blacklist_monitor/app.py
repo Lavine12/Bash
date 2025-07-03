@@ -37,7 +37,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ip TEXT UNIQUE,
             last_checked TEXT,
-            group_id INTEGER
+            group_id INTEGER,
+            excluded INTEGER DEFAULT 0
         )''')
         c.execute('''CREATE TABLE IF NOT EXISTS dnsbls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,11 +59,19 @@ def init_db():
             key TEXT PRIMARY KEY,
             value TEXT
         )''')
-        # ensure group_id column exists
+        # ensure upgrade columns exist
         try:
             c.execute('ALTER TABLE ip_addresses ADD COLUMN group_id INTEGER')
         except sqlite3.OperationalError:
             pass
+        try:
+            c.execute('ALTER TABLE ip_addresses ADD COLUMN excluded INTEGER DEFAULT 0')
+        except sqlite3.OperationalError:
+            pass
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}'))
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('RESEND_PERIODIC', '1'))
         if TELEGRAM_TOKEN:
             c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                       ('TELEGRAM_TOKEN', TELEGRAM_TOKEN))
@@ -76,7 +85,7 @@ def init_db():
 def index():
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-        ips = c.execute('''SELECT id, ip, last_checked, group_id,
+        ips = c.execute('''SELECT id, ip, last_checked, group_id, excluded,
                                  (SELECT MAX(listed) FROM check_results
                                   WHERE ip_id=ip_addresses.id
                                   AND checked_at=ip_addresses.last_checked)
@@ -112,7 +121,7 @@ def manage_ips():
                 net = ipaddress.ip_network(ip_range, strict=False)
                 for ip in net.hosts():
                     try:
-                        c.execute('INSERT OR IGNORE INTO ip_addresses (ip, group_id) VALUES (?, ?)', (str(ip), group_id))
+                        c.execute('INSERT OR IGNORE INTO ip_addresses (ip, group_id, excluded) VALUES (?, ?, 0)', (str(ip), group_id))
                         row = c.execute('SELECT id FROM ip_addresses WHERE ip=?', (str(ip),)).fetchone()
                         if row:
                             check_ip(row[0])
@@ -122,7 +131,7 @@ def manage_ips():
                 pass
             conn.commit()
             return redirect(url_for('manage_ips'))
-        ips = c.execute('SELECT id, ip, group_id FROM ip_addresses').fetchall()
+        ips = c.execute('SELECT id, ip, group_id, excluded FROM ip_addresses').fetchall()
         groups = c.execute('SELECT id, name FROM ip_groups').fetchall()
     return render_template('ips.html', ips=ips, groups=groups)
 
@@ -140,7 +149,7 @@ def bulk_ips():
             try:
                 net = ipaddress.ip_network(line, strict=False)
                 for ip in net.hosts():
-                    c.execute('INSERT OR IGNORE INTO ip_addresses (ip, group_id) VALUES (?, ?)', (str(ip), group_id))
+                    c.execute('INSERT OR IGNORE INTO ip_addresses (ip, group_id, excluded) VALUES (?, ?, 0)', (str(ip), group_id))
                     row = c.execute('SELECT id FROM ip_addresses WHERE ip=?', (str(ip),)).fetchone()
                     if row:
                         check_ip(row[0])
@@ -259,10 +268,38 @@ def set_group():
     return redirect(url_for('manage_ips'))
 
 
+@app.route('/exclude_selected', methods=['POST'])
+def exclude_selected():
+    ids = request.form.getlist('ip_id')
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        for ip_id in ids:
+            try:
+                c.execute('UPDATE ip_addresses SET excluded=1 WHERE id=?', (ip_id,))
+            except sqlite3.Error:
+                pass
+        conn.commit()
+    return redirect(url_for('index'))
+
+
+@app.route('/include_selected', methods=['POST'])
+def include_selected():
+    ids = request.form.getlist('ip_id')
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        for ip_id in ids:
+            try:
+                c.execute('UPDATE ip_addresses SET excluded=0 WHERE id=?', (ip_id,))
+            except sqlite3.Error:
+                pass
+        conn.commit()
+    return redirect(url_for('index'))
+
+
 def check_blacklists():
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-        ips = c.execute('SELECT id FROM ip_addresses').fetchall()
+        ips = c.execute('SELECT id FROM ip_addresses WHERE excluded=0').fetchall()
         for (ip_id,) in ips:
             check_ip(ip_id)
         conn.commit()
@@ -282,7 +319,16 @@ def check_ip(ip_id):
             try:
                 dns.resolver.resolve(query, 'A')
                 listed = 1
-                send_telegram_alert(ip, dnsbl)
+                alert_message = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
+                resend = int(get_setting('RESEND_PERIODIC', '1'))
+                send = True
+                if not resend:
+                    prev = c.execute('''SELECT listed FROM check_results WHERE ip_id=? AND dnsbl_id=? ORDER BY checked_at DESC LIMIT 1''',
+                                     (ip_id, dnsbl_id)).fetchone()
+                    if prev and prev[0] == 1:
+                        send = False
+                if send:
+                    send_telegram_alert(alert_message.format(ip=ip, dnsbl=dnsbl))
             except dns.resolver.NXDOMAIN:
                 listed = 0
             except Exception as e:
@@ -293,12 +339,12 @@ def check_ip(ip_id):
         conn.commit()
 
 
-def send_telegram_alert(ip, dnsbl):
+def send_telegram_alert(message):
     token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
     chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
     if not token or not chat_id:
         return
-    text = f'IP {ip} is blacklisted in {dnsbl}'
+    text = message
     url = f'https://api.telegram.org/bot{token}/sendMessage'
     try:
         requests.post(url, data={'chat_id': chat_id, 'text': text}, timeout=5)
@@ -337,17 +383,33 @@ def check_selected():
 def telegram_settings():
     token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
     chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
+    alert_message = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
+    resend = int(get_setting('RESEND_PERIODIC', '1'))
     if request.method == 'POST':
         action = request.form.get('action')
         new_token = request.form.get('token', '').strip()
         new_chat = request.form.get('chat_id', '').strip()
+        new_msg = request.form.get('alert_message', '').strip()
+        resend_flag = 1 if request.form.get('resend_periodic') == 'on' else 0
         if action == 'Test':
             send_test_message(new_token or token, new_chat or chat_id)
         else:
-            set_setting('TELEGRAM_TOKEN', new_token)
-            set_setting('TELEGRAM_CHAT_ID', new_chat)
-            token, chat_id = new_token, new_chat
-    return render_template('telegram.html', token=token, chat_id=chat_id)
+            if new_token:
+                set_setting('TELEGRAM_TOKEN', new_token)
+                token = new_token
+            if new_chat:
+                set_setting('TELEGRAM_CHAT_ID', new_chat)
+                chat_id = new_chat
+            if new_msg:
+                set_setting('ALERT_MESSAGE', new_msg)
+                alert_message = new_msg
+            set_setting('RESEND_PERIODIC', str(resend_flag))
+            resend = resend_flag
+            new_token = ''
+            new_chat = ''
+    return render_template('telegram.html', token_display=token,
+                           chat_id_display=chat_id, message=alert_message,
+                           resend_periodic=resend)
 
 
 @app.route('/schedule', methods=['GET', 'POST'])

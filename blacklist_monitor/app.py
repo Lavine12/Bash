@@ -320,7 +320,7 @@ def check_ip(ip_id):
             return
         ip = row[0]
         dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
-        timestamp = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         for dnsbl_id, dnsbl in dnsbls:
             query = '.'.join(reversed(ip.split('.'))) + '.' + dnsbl
             listed = 0
@@ -338,7 +338,7 @@ def check_ip(ip_id):
                 else:
                     if prev:
                         prev_time = datetime.datetime.strptime(prev[1], '%Y-%m-%d %H:%M:%S')
-                        if datetime.datetime.utcnow() - prev_time < datetime.timedelta(minutes=period):
+                        if datetime.datetime.now() - prev_time < datetime.timedelta(minutes=period):
                             send = False
                 if send:
                     send_telegram_alert(alert_message.format(ip=ip, dnsbl=dnsbl))

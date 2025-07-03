@@ -9,16 +9,16 @@
     <button type="submit" formaction="{{ url_for('include_selected') }}">Include Selected</button>
     {% for g in groups %}
         <h3 onclick="toggle('g{{ g[0] }}')" class="group-header">{{ g[1] }}</h3>
-        <div id="g{{ g[0] }}">
+        <div id="g{{ g[0] }}" data-collapse>
         <table>
             <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Last Checked</th><th>Status</th><th>DNSBL</th><th>Check Excluded</th></tr>
             {% for ip in ips %}
                 {% if ip[3] == g[0] %}
-                <tr>
+                <tr class="{% if ip[4] %}row-excluded{% elif ip[5] == 1 %}row-listed{% elif ip[5] == 0 %}row-clean{% else %}row-unknown{% endif %}">
                     <td><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
                     <td>{{ ip[1] }}</td>
                     <td>{{ ip[2] or 'never' }}</td>
-                    <td>{% if ip[5] == 1 %}listed{% elif ip[5] == 0 %}clean{% else %}-{% endif %}</td>
+                    <td class="{% if ip[5] == 1 %}status-listed{% elif ip[5] == 0 %}status-clean{% endif %}">{% if ip[5] == 1 %}listed{% elif ip[5] == 0 %}clean{% else %}-{% endif %}</td>
                     <td>{{ dnsbl_map[ip[0]]|join(', ') }}</td>
                     <td>{{ 'yes' if ip[4] else 'no' }}</td>
                 </tr>
@@ -31,15 +31,15 @@
     {% for ip in ips %}{% if not ip[3] %}{% set _ = ungroup.append(ip) %}{% endif %}{% endfor %}
     {% if ungroup %}
         <h3 onclick="toggle('g0')" class="group-header">Ungrouped</h3>
-        <div id="g0">
+        <div id="g0" data-collapse>
         <table>
             <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Last Checked</th><th>Status</th><th>DNSBL</th><th>Check Excluded</th></tr>
             {% for ip in ungroup %}
-            <tr>
+            <tr class="{% if ip[4] %}row-excluded{% elif ip[5] == 1 %}row-listed{% elif ip[5] == 0 %}row-clean{% else %}row-unknown{% endif %}">
                 <td><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
                 <td>{{ ip[1] }}</td>
                 <td>{{ ip[2] or 'never' }}</td>
-                <td>{% if ip[5] == 1 %}listed{% elif ip[5] == 0 %}clean{% else %}-{% endif %}</td>
+                <td class="{% if ip[5] == 1 %}status-listed{% elif ip[5] == 0 %}status-clean{% endif %}">{% if ip[5] == 1 %}listed{% elif ip[5] == 0 %}clean{% else %}-{% endif %}</td>
                 <td>{{ dnsbl_map[ip[0]]|join(', ') }}</td>
                 <td>{{ 'yes' if ip[4] else 'no' }}</td>
             </tr>
@@ -48,9 +48,4 @@
         </div>
     {% endif %}
 </form>
-<script>
-function toggle(id){var e=document.getElementById(id);if(!e)return;var s=e.style.display==='none'?'':'none';e.style.display=s;localStorage.setItem('collapse_'+id,s);}
-window.addEventListener('load',function(){document.querySelectorAll('div[id^="g"]').forEach(function(el){var s=localStorage.getItem('collapse_'+el.id);if(s!==null){el.style.display=s;}});});
-function toggleAll(src){var tbl=src.closest('table');if(!tbl)return;var boxes=tbl.querySelectorAll('input[type="checkbox"][name="ip_id"]');boxes.forEach(function(cb){cb.checked=src.checked;});}
-</script>
 {% endblock %}

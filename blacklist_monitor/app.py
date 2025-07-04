@@ -285,6 +285,37 @@ def update_group(group_id):
     return redirect(url_for('manage_groups'))
 
 
+@app.route('/groups/update_selected', methods=['POST'])
+def update_selected_groups():
+    ids = request.form.getlist('group_id')
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        for gid in ids:
+            name = request.form.get(f'group_name_{gid}', '').strip()
+            if name:
+                try:
+                    c.execute('UPDATE ip_groups SET name=? WHERE id=?', (name, gid))
+                except sqlite3.Error:
+                    pass
+        conn.commit()
+    return redirect(url_for('manage_groups'))
+
+
+@app.route('/groups/delete_selected', methods=['POST'])
+def delete_selected_groups():
+    ids = request.form.getlist('group_id')
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        for gid in ids:
+            try:
+                c.execute('DELETE FROM ip_groups WHERE id=?', (gid,))
+                c.execute('UPDATE ip_addresses SET group_id=NULL WHERE group_id=?', (gid,))
+            except sqlite3.Error:
+                pass
+        conn.commit()
+    return redirect(url_for('manage_groups'))
+
+
 @app.route('/ips/set_group', methods=['POST'])
 def set_group():
     group_id = request.form.get('group_id') or None

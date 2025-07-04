@@ -74,3 +74,8 @@ button, input[type="submit"] {
 .row-excluded { opacity: 0.6; }
 .status-listed { color: #b00000; font-weight: bold; }
 .status-clean { color: #009000; }
+
+/* Add spacing between the action buttons and the table */
+.action-buttons {
+    margin-bottom: 1em;
+}

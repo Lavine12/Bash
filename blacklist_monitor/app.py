@@ -441,8 +441,7 @@ def telegram_settings():
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
         if request.method == 'POST':
-            actions = request.form.getlist('action')
-            action = actions[-1] if actions else ''
+            action = request.form.get('action', '')
             if action == 'Add':
                 tok = request.form.get('token', '').strip()
                 chat = request.form.get('chat_id', '').strip()
@@ -457,45 +456,40 @@ def telegram_settings():
                 if tok and chat:
                     c.execute('INSERT INTO telegram_chats (token, chat_id, active, alert_message, resend_period) VALUES (?, ?, ?, ?, ?)',
                               (tok, chat, active, msg, period_val))
-            elif action == 'Update':
-                row_id = request.form.get('row_id')
-                tok = request.form.get('token', '').strip()
-                chat = request.form.get('chat_id', '').strip()
-                active = 1 if request.form.get('active') == 'on' else 0
-                msg = request.form.get('alert_message', '').strip() or None
-                try:
-                    rh = int(request.form.get('resend_hours', 0))
-                    rm = int(request.form.get('resend_minutes', 0))
-                    period_val = rh * 60 + rm
-                except ValueError:
-                    period_val = None
-                c.execute('UPDATE telegram_chats SET token=?, chat_id=?, active=?, alert_message=?, resend_period=? WHERE id=?',
-                          (tok, chat, active, msg, period_val, row_id))
-            elif action == 'Delete':
-                row_id = request.form.get('row_id')
-                c.execute('DELETE FROM telegram_chats WHERE id=?', (row_id,))
-            elif action == 'SaveMsg':
-                new_msg = request.form.get('alert_message', '').strip()
-                if new_msg:
-                    set_setting('ALERT_MESSAGE', new_msg)
-                    alert_message = new_msg
-                try:
-                    rh = int(request.form.get('resend_hours', 0))
-                    rm = int(request.form.get('resend_minutes', 0))
-                    period_val = rh * 60 + rm
-                except ValueError:
-                    period_val = resend_period
-                set_setting('RESEND_PERIOD', str(period_val))
-                resend_period = period_val
-            elif action == 'Test':
-                msg = request.form.get('alert_message', '').strip() or 'Test Message'
-                row_id = request.form.get('row_id')
-                if row_id:
-                    row = c.execute('SELECT token, chat_id FROM telegram_chats WHERE id=?', (row_id,)).fetchone()
-                    if row:
-                        send_test_message(token=row[0], chat_id=row[1], message=msg)
-                else:
-                    send_test_message(message=msg)
+            else:
+                ids = request.form.getlist('chat_id')
+                if action == 'Activate':
+                    for cid in ids:
+                        c.execute('UPDATE telegram_chats SET active=1 WHERE id=?', (cid,))
+                elif action == 'Deactivate':
+                    for cid in ids:
+                        c.execute('UPDATE telegram_chats SET active=0 WHERE id=?', (cid,))
+                elif action == 'Delete':
+                    for cid in ids:
+                        c.execute('DELETE FROM telegram_chats WHERE id=?', (cid,))
+                elif action == 'Update':
+                    for cid in ids:
+                        tok = request.form.get(f'token_{cid}', '').strip()
+                        chat = request.form.get(f'chatid_{cid}', '').strip()
+                        active = 1 if request.form.get(f'active_{cid}') == 'on' else 0
+                        msg = request.form.get(f'alert_message_{cid}', '').strip() or None
+                        try:
+                            rh = int(request.form.get(f'resend_hours_{cid}', 0))
+                            rm = int(request.form.get(f'resend_minutes_{cid}', 0))
+                            period_val = rh * 60 + rm
+                        except ValueError:
+                            period_val = None
+                        c.execute('UPDATE telegram_chats SET token=?, chat_id=?, active=?, alert_message=?, resend_period=? WHERE id=?',
+                                  (tok, chat, active, msg, period_val, cid))
+                elif action == 'Test':
+                    if ids:
+                        for cid in ids:
+                            row = c.execute('SELECT token, chat_id FROM telegram_chats WHERE id=?', (cid,)).fetchone()
+                            msg = request.form.get(f'alert_message_{cid}', '').strip() or 'Test Message'
+                            if row:
+                                send_test_message(token=row[0], chat_id=row[1], message=msg)
+                    else:
+                        send_test_message(message='Test Message')
         conn.commit()
         chats = c.execute('SELECT id, token, chat_id, active, alert_message, resend_period FROM telegram_chats').fetchall()
     rh_disp = resend_period // 60

@@ -59,7 +59,9 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             token TEXT,
             chat_id TEXT,
-            active INTEGER DEFAULT 1
+            active INTEGER DEFAULT 1,
+            alert_message TEXT,
+            resend_period INTEGER
         )''')
         c.execute('''CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -72,6 +74,14 @@ def init_db():
             pass
         try:
             c.execute('ALTER TABLE ip_addresses ADD COLUMN excluded INTEGER DEFAULT 0')
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute('ALTER TABLE telegram_chats ADD COLUMN alert_message TEXT')
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute('ALTER TABLE telegram_chats ADD COLUMN resend_period INTEGER')
         except sqlite3.OperationalError:
             pass
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
@@ -338,21 +348,12 @@ def check_ip(ip_id):
             try:
                 dns.resolver.resolve(query, 'A')
                 listed = 1
-                alert_message = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
-                period = int(get_setting('RESEND_PERIOD', '0'))
-                send = True
                 prev = c.execute('''SELECT listed, checked_at FROM check_results WHERE ip_id=? AND dnsbl_id=? AND listed=1 ORDER BY checked_at DESC LIMIT 1''',
                                  (ip_id, dnsbl_id)).fetchone()
-                if period == 0:
-                    if prev:
-                        send = False
-                else:
-                    if prev:
-                        prev_time = datetime.datetime.strptime(prev[1], '%Y-%m-%d %H:%M:%S')
-                        if datetime.datetime.now() - prev_time < datetime.timedelta(minutes=period):
-                            send = False
-                if send:
-                    send_telegram_alert(alert_message.format(ip=ip, dnsbl=dnsbl))
+                prev_time = None
+                if prev:
+                    prev_time = datetime.datetime.strptime(prev[1], '%Y-%m-%d %H:%M:%S')
+                send_telegram_alerts(ip, dnsbl, prev_time)
             except dns.resolver.NXDOMAIN:
                 listed = 0
             except Exception as e:
@@ -363,22 +364,37 @@ def check_ip(ip_id):
         conn.commit()
 
 
-def send_telegram_alert(message):
-    text = message
+def send_telegram_alerts(ip, dnsbl, prev_time=None):
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-        rows = c.execute('SELECT token, chat_id FROM telegram_chats WHERE active=1').fetchall()
+        rows = c.execute('SELECT token, chat_id, active, alert_message, resend_period FROM telegram_chats').fetchall()
     if not rows:
         token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
         chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
         if token and chat_id:
-            rows = [(token, chat_id)]
-    for token, chat_id in rows:
-        url = f'https://api.telegram.org/bot{token}/sendMessage'
-        try:
-            requests.post(url, data={'chat_id': chat_id, 'text': text}, timeout=5)
-        except requests.RequestException as e:
-            print('Telegram send error:', e)
+            msg = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
+            period = int(get_setting('RESEND_PERIOD', '0'))
+            rows = [(token, chat_id, 1, msg, period)]
+    default_msg = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
+    default_period = int(get_setting('RESEND_PERIOD', '0'))
+    for token, chat_id, active, msg, period in rows:
+        if not active:
+            continue
+        message = msg or default_msg
+        resend = period if period is not None else default_period
+        send = True
+        if resend == 0:
+            if prev_time:
+                send = False
+        else:
+            if prev_time and datetime.datetime.now() - prev_time < datetime.timedelta(minutes=resend):
+                send = False
+        if send:
+            url = f'https://api.telegram.org/bot{token}/sendMessage'
+            try:
+                requests.post(url, data={'chat_id': chat_id, 'text': message.format(ip=ip, dnsbl=dnsbl)}, timeout=5)
+            except requests.RequestException as e:
+                print('Telegram send error:', e)
 
 
 def send_test_message(token=None, chat_id=None, message='Test message'):
@@ -431,16 +447,30 @@ def telegram_settings():
                 tok = request.form.get('token', '').strip()
                 chat = request.form.get('chat_id', '').strip()
                 active = 1 if request.form.get('active') == 'on' else 0
+                msg = request.form.get('alert_message', '').strip() or None
+                try:
+                    rh = int(request.form.get('resend_hours', 0))
+                    rm = int(request.form.get('resend_minutes', 0))
+                    period_val = rh * 60 + rm
+                except ValueError:
+                    period_val = None
                 if tok and chat:
-                    c.execute('INSERT INTO telegram_chats (token, chat_id, active) VALUES (?, ?, ?)',
-                              (tok, chat, active))
+                    c.execute('INSERT INTO telegram_chats (token, chat_id, active, alert_message, resend_period) VALUES (?, ?, ?, ?, ?)',
+                              (tok, chat, active, msg, period_val))
             elif action == 'Update':
                 row_id = request.form.get('row_id')
                 tok = request.form.get('token', '').strip()
                 chat = request.form.get('chat_id', '').strip()
                 active = 1 if request.form.get('active') == 'on' else 0
-                c.execute('UPDATE telegram_chats SET token=?, chat_id=?, active=? WHERE id=?',
-                          (tok, chat, active, row_id))
+                msg = request.form.get('alert_message', '').strip() or None
+                try:
+                    rh = int(request.form.get('resend_hours', 0))
+                    rm = int(request.form.get('resend_minutes', 0))
+                    period_val = rh * 60 + rm
+                except ValueError:
+                    period_val = None
+                c.execute('UPDATE telegram_chats SET token=?, chat_id=?, active=?, alert_message=?, resend_period=? WHERE id=?',
+                          (tok, chat, active, msg, period_val, row_id))
             elif action == 'Delete':
                 row_id = request.form.get('row_id')
                 c.execute('DELETE FROM telegram_chats WHERE id=?', (row_id,))
@@ -459,12 +489,22 @@ def telegram_settings():
                 resend_period = period_val
             elif action == 'Test':
                 msg = request.form.get('alert_message', '').strip() or 'Test Message'
-                send_test_message(message=msg)
+                row_id = request.form.get('row_id')
+                if row_id:
+                    row = c.execute('SELECT token, chat_id FROM telegram_chats WHERE id=?', (row_id,)).fetchone()
+                    if row:
+                        send_test_message(token=row[0], chat_id=row[1], message=msg)
+                else:
+                    send_test_message(message=msg)
         conn.commit()
-        chats = c.execute('SELECT id, token, chat_id, active FROM telegram_chats').fetchall()
+        chats = c.execute('SELECT id, token, chat_id, active, alert_message, resend_period FROM telegram_chats').fetchall()
     rh_disp = resend_period // 60
     rm_disp = resend_period % 60
-    return render_template('telegram.html', chats=chats, message=alert_message,
+    chat_settings = []
+    for row in chats:
+        rperiod = row[5] if row[5] is not None else resend_period
+        chat_settings.append((row[0], row[1], row[2], row[3], row[4], rperiod // 60, rperiod % 60))
+    return render_template('telegram.html', chats=chat_settings, message=alert_message,
                            resend_hours=rh_disp, resend_minutes=rm_disp)
 
 

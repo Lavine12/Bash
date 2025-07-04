@@ -63,6 +63,11 @@ button, input[type="submit"] {
     border: 1px solid #ccc;
     border-radius: 4px;
 }
+.wide-select {
+    padding: 0.4em;
+    margin: 0.2em 0;
+    width: 300px;
+}
 .row-listed { background-color: #ffe6e6; }
 .row-clean { background-color: #e6ffe6; }
 .row-unknown { background-color: #f9f9f9; }

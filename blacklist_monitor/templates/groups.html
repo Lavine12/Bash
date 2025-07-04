@@ -1,27 +1,27 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1>Groups</h1>
-<form method="post">
+<form method="post" class="action-buttons">
     <input type="text" name="group" placeholder="Group name" required class="telegram-input">
     <input type="submit" value="Add">
 </form>
-<br>
-<table>
-    <tr><th>Group</th><th>Actions</th></tr>
-    {% for g in groups %}
-    <tr>
-        <td>
-            <form method="post" action="{{ url_for('update_group', group_id=g[0]) }}">
-                <input type="text" name="group_name" value="{{ g[1] }}" class="telegram-input">
-                <button type="submit">Update</button>
-            </form>
-        </td>
-        <td>
-            <form method="post" action="{{ url_for('delete_group', group_id=g[0]) }}">
-                <button type="submit">Delete</button>
-            </form>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+
+<form method="post" id="groups-form">
+    <div class="action-buttons">
+        <button type="submit" formaction="{{ url_for('update_selected_groups') }}">Update Selected</button>
+        <button type="submit" formaction="{{ url_for('delete_selected_groups') }}">Delete Selected</button>
+    </div>
+    <table>
+        <tr>
+            <th><input type="checkbox" onclick="toggleAll(this)"></th>
+            <th>Group</th>
+        </tr>
+        {% for g in groups %}
+        <tr>
+            <td><input type="checkbox" name="group_id" value="{{ g[0] }}"></td>
+            <td><input type="text" name="group_name_{{ g[0] }}" value="{{ g[1] }}" class="telegram-input"></td>
+        </tr>
+        {% endfor %}
+    </table>
+</form>
 {% endblock %}

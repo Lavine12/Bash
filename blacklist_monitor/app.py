@@ -8,6 +8,7 @@ import dns.resolver
 import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data.db')
+DB_TIMEOUT = 30  # seconds
 TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 
@@ -17,21 +18,21 @@ sched = BackgroundScheduler()
 
 
 def get_setting(key, default=''):
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         row = c.execute('SELECT value FROM settings WHERE key=?', (key,)).fetchone()
         return row[0] if row else default
 
 
 def set_setting(key, value):
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         c.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (key, value))
         conn.commit()
 
 
 def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         c.execute('''CREATE TABLE IF NOT EXISTS ip_addresses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,7 +102,7 @@ def init_db():
 
 @app.route('/')
 def index():
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         ips = c.execute('''SELECT id, ip, last_checked, group_id, excluded,
                                  (SELECT MAX(listed) FROM check_results
@@ -130,7 +131,7 @@ def index():
 
 @app.route('/ips', methods=['GET', 'POST'])
 def manage_ips():
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         if request.method == 'POST':
             ip_range = request.form['ip']
@@ -159,7 +160,7 @@ def bulk_ips():
     entries = request.form.get('ips_bulk', '')
     group_id = request.form.get('group_id') or None
     lines = [line.strip() for line in entries.splitlines()]
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         for line in lines:
             if not line:
@@ -179,7 +180,7 @@ def bulk_ips():
 
 @app.route('/ips/delete/<int:ip_id>', methods=['POST'])
 def delete_ip(ip_id):
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         c.execute('DELETE FROM ip_addresses WHERE id=?', (ip_id,))
         conn.commit()
@@ -189,7 +190,7 @@ def delete_ip(ip_id):
 @app.route('/ips/delete_selected', methods=['POST'])
 def delete_selected_ips():
     ids = request.form.getlist('ip_id')
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         for ip_id in ids:
             try:
@@ -202,7 +203,7 @@ def delete_selected_ips():
 
 @app.route('/dnsbls', methods=['GET', 'POST'])
 def manage_dnsbls():
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         if request.method == 'POST':
             domain = request.form['dnsbl']
@@ -218,7 +219,7 @@ def manage_dnsbls():
 def bulk_dnsbls():
     entries = request.form.get('dnsbls_bulk', '')
     lines = [line.strip() for line in entries.splitlines()]
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         for line in lines:
             if line:
@@ -230,7 +231,7 @@ def bulk_dnsbls():
 
 @app.route('/dnsbls/delete/<int:dnsbl_id>', methods=['POST'])
 def delete_dnsbl(dnsbl_id):
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         c.execute('DELETE FROM dnsbls WHERE id=?', (dnsbl_id,))
         conn.commit()
@@ -240,7 +241,7 @@ def delete_dnsbl(dnsbl_id):
 @app.route('/dnsbls/delete_selected', methods=['POST'])
 def delete_selected_dnsbls():
     ids = request.form.getlist('dnsbl_id')
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         for dnsbl_id in ids:
             try:
@@ -253,7 +254,7 @@ def delete_selected_dnsbls():
 
 @app.route('/groups', methods=['GET', 'POST'])
 def manage_groups():
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         if request.method == 'POST':
             name = request.form['group']
@@ -266,7 +267,7 @@ def manage_groups():
 
 @app.route('/groups/delete/<int:group_id>', methods=['POST'])
 def delete_group(group_id):
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         c.execute('DELETE FROM ip_groups WHERE id=?', (group_id,))
         c.execute('UPDATE ip_addresses SET group_id=NULL WHERE group_id=?', (group_id,))
@@ -278,7 +279,7 @@ def delete_group(group_id):
 def update_group(group_id):
     new_name = request.form.get('group_name', '').strip()
     if new_name:
-        with sqlite3.connect(DB_PATH) as conn:
+        with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
             c = conn.cursor()
             c.execute('UPDATE ip_groups SET name=? WHERE id=?', (new_name, group_id))
             conn.commit()
@@ -288,7 +289,7 @@ def update_group(group_id):
 @app.route('/groups/update_selected', methods=['POST'])
 def update_selected_groups():
     ids = request.form.getlist('group_id')
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         for gid in ids:
             name = request.form.get(f'group_name_{gid}', '').strip()
@@ -304,7 +305,7 @@ def update_selected_groups():
 @app.route('/groups/delete_selected', methods=['POST'])
 def delete_selected_groups():
     ids = request.form.getlist('group_id')
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         for gid in ids:
             try:
@@ -320,7 +321,7 @@ def delete_selected_groups():
 def set_group():
     group_id = request.form.get('group_id') or None
     ip_ids = request.form.getlist('ip_id')
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         for ip_id in ip_ids:
             c.execute('UPDATE ip_addresses SET group_id=? WHERE id=?', (group_id, ip_id))
@@ -331,7 +332,7 @@ def set_group():
 @app.route('/exclude_selected', methods=['POST'])
 def exclude_selected():
     ids = request.form.getlist('ip_id')
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         for ip_id in ids:
             try:
@@ -345,7 +346,7 @@ def exclude_selected():
 @app.route('/include_selected', methods=['POST'])
 def include_selected():
     ids = request.form.getlist('ip_id')
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         for ip_id in ids:
             try:
@@ -357,7 +358,7 @@ def include_selected():
 
 
 def check_blacklists():
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         ips = c.execute('SELECT id FROM ip_addresses WHERE excluded=0').fetchall()
         for (ip_id,) in ips:
@@ -365,7 +366,7 @@ def check_blacklists():
         conn.commit()
 
 def check_ip(ip_id):
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         row = c.execute('SELECT ip, excluded FROM ip_addresses WHERE id=?', (ip_id,)).fetchone()
         if not row or row[1]:
@@ -373,32 +374,47 @@ def check_ip(ip_id):
         ip = row[0]
         dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        listed_info = []
         for dnsbl_id, dnsbl in dnsbls:
             query = '.'.join(reversed(ip.split('.'))) + '.' + dnsbl
             listed = 0
+            prev_time = None
             try:
                 dns.resolver.resolve(query, 'A')
                 listed = 1
-                prev = c.execute('''SELECT listed, checked_at FROM check_results WHERE ip_id=? AND dnsbl_id=? AND listed=1 ORDER BY checked_at DESC LIMIT 1''',
-                                 (ip_id, dnsbl_id)).fetchone()
-                prev_time = None
+                prev = c.execute(
+                    '''SELECT listed, checked_at FROM check_results WHERE ip_id=? AND dnsbl_id=? AND listed=1 ORDER BY checked_at DESC LIMIT 1''',
+                    (ip_id, dnsbl_id),
+                ).fetchone()
                 if prev:
                     prev_time = datetime.datetime.strptime(prev[1], '%Y-%m-%d %H:%M:%S')
-                send_telegram_alerts(ip, dnsbl, prev_time)
+                listed_info.append((dnsbl, prev_time))
             except dns.resolver.NXDOMAIN:
                 listed = 0
             except Exception as e:
                 print('DNS check error:', e)
-            c.execute('INSERT INTO check_results (ip_id, dnsbl_id, listed, checked_at) VALUES (?, ?, ?, ?)',
-                      (ip_id, dnsbl_id, listed, timestamp))
+            c.execute(
+                'INSERT INTO check_results (ip_id, dnsbl_id, listed, checked_at) VALUES (?, ?, ?, ?)',
+                (ip_id, dnsbl_id, listed, timestamp),
+            )
         c.execute('UPDATE ip_addresses SET last_checked=? WHERE id=?', (timestamp, ip_id))
         conn.commit()
+    if listed_info:
+        send_telegram_alerts(ip, listed_info)
 
 
-def send_telegram_alerts(ip, dnsbl, prev_time=None):
-    with sqlite3.connect(DB_PATH) as conn:
+def send_telegram_alerts(ip, dnsbl_info):
+    """Send a single alert message listing all DNSBLs where the IP is found.
+
+    dnsbl_info should be a list of (dnsbl_name, prev_time) tuples. The resend
+    logic is evaluated for each dnsbl and the message is sent if any of them
+    qualifies for sending.
+    """
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
-        rows = c.execute('SELECT token, chat_id, active, alert_message, resend_period FROM telegram_chats').fetchall()
+        rows = c.execute(
+            'SELECT token, chat_id, active, alert_message, resend_period FROM telegram_chats'
+        ).fetchall()
     if not rows:
         token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
         chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
@@ -406,24 +422,35 @@ def send_telegram_alerts(ip, dnsbl, prev_time=None):
             msg = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
             period = int(get_setting('RESEND_PERIOD', '0'))
             rows = [(token, chat_id, 1, msg, period)]
+
     default_msg = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
     default_period = int(get_setting('RESEND_PERIOD', '0'))
+    dnsbl_names = [d for d, _ in dnsbl_info]
     for token, chat_id, active, msg, period in rows:
         if not active:
             continue
         message = msg or default_msg
         resend = period if period is not None else default_period
-        send = True
-        if resend == 0:
-            if prev_time:
-                send = False
-        else:
-            if prev_time and datetime.datetime.now() - prev_time < datetime.timedelta(minutes=resend):
-                send = False
-        if send:
+        should_send = False
+        for _, prev_time in dnsbl_info:
+            send = True
+            if resend == 0:
+                if prev_time:
+                    send = False
+            else:
+                if prev_time and datetime.datetime.now() - prev_time < datetime.timedelta(minutes=resend):
+                    send = False
+            if send:
+                should_send = True
+                break
+        if should_send:
             url = f'https://api.telegram.org/bot{token}/sendMessage'
             try:
-                requests.post(url, data={'chat_id': chat_id, 'text': message.format(ip=ip, dnsbl=dnsbl)}, timeout=5)
+                requests.post(
+                    url,
+                    data={'chat_id': chat_id, 'text': message.format(ip=ip, dnsbl=', '.join(dnsbl_names))},
+                    timeout=5,
+                )
             except requests.RequestException as e:
                 print('Telegram send error:', e)
 
@@ -432,7 +459,7 @@ def send_test_message(token=None, chat_id=None, message='Test message'):
     if token and chat_id:
         rows = [(token, chat_id)]
     else:
-        with sqlite3.connect(DB_PATH) as conn:
+        with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
             c = conn.cursor()
             rows = c.execute('SELECT token, chat_id FROM telegram_chats WHERE active=1').fetchall()
         if not rows:
@@ -469,7 +496,7 @@ def check_selected():
 def telegram_settings():
     alert_message = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
     resend_period = int(get_setting('RESEND_PERIOD', '0'))
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         if request.method == 'POST':
             action = request.form.get('action', '')

@@ -17,6 +17,13 @@
 
 <h2>Saved Chats</h2>
 <form method="post">
+    <div>
+        <button type="submit" name="action" value="Activate">Activate</button>
+        <button type="submit" name="action" value="Deactivate">Deactivate</button>
+        <button type="submit" name="action" value="Update">Update</button>
+        <button type="submit" name="action" value="Delete">Delete</button>
+        <button type="submit" name="action" value="Test">Test</button>
+    </div>
     <table>
         <thead>
             <tr>
@@ -43,12 +50,5 @@
         {% endfor %}
         </tbody>
     </table>
-    <div>
-        <button type="submit" name="action" value="Activate">Activate</button>
-        <button type="submit" name="action" value="Deactivate">Deactivate</button>
-        <button type="submit" name="action" value="Update">Update</button>
-        <button type="submit" name="action" value="Delete">Delete</button>
-        <button type="submit" name="action" value="Test">Test</button>
-    </div>
 </form>
 {% endblock %}

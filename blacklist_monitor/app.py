@@ -60,6 +60,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             token TEXT,
             chat_id TEXT,
+            name TEXT,
             active INTEGER DEFAULT 1,
             alert_message TEXT,
             resend_period INTEGER
@@ -83,6 +84,10 @@ def init_db():
             pass
         try:
             c.execute('ALTER TABLE telegram_chats ADD COLUMN resend_period INTEGER')
+        except sqlite3.OperationalError:
+            pass
+        try:
+            c.execute('ALTER TABLE telegram_chats ADD COLUMN name TEXT')
         except sqlite3.OperationalError:
             pass
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
@@ -503,6 +508,7 @@ def telegram_settings():
             if action == 'Add':
                 tok = request.form.get('token', '').strip()
                 chat = request.form.get('chat_id', '').strip()
+                name = request.form.get('chat_name', '').strip() or None
                 active = 1 if request.form.get('active') == 'on' else 0
                 msg = request.form.get('alert_message', '').strip() or None
                 try:
@@ -512,8 +518,8 @@ def telegram_settings():
                 except ValueError:
                     period_val = None
                 if tok and chat:
-                    c.execute('INSERT INTO telegram_chats (token, chat_id, active, alert_message, resend_period) VALUES (?, ?, ?, ?, ?)',
-                              (tok, chat, active, msg, period_val))
+                    c.execute('INSERT INTO telegram_chats (token, chat_id, name, active, alert_message, resend_period) VALUES (?, ?, ?, ?, ?, ?)',
+                              (tok, chat, name, active, msg, period_val))
             else:
                 ids = request.form.getlist('chat_id')
                 if action == 'Activate':
@@ -529,6 +535,7 @@ def telegram_settings():
                     for cid in ids:
                         tok = request.form.get(f'token_{cid}', '').strip()
                         chat = request.form.get(f'chatid_{cid}', '').strip()
+                        name = request.form.get(f'chatname_{cid}', '').strip() or None
                         active = 1 if request.form.get(f'active_{cid}') == 'on' else 0
                         msg = request.form.get(f'alert_message_{cid}', '').strip() or None
                         try:
@@ -537,8 +544,8 @@ def telegram_settings():
                             period_val = rh * 60 + rm
                         except ValueError:
                             period_val = None
-                        c.execute('UPDATE telegram_chats SET token=?, chat_id=?, active=?, alert_message=?, resend_period=? WHERE id=?',
-                                  (tok, chat, active, msg, period_val, cid))
+                        c.execute('UPDATE telegram_chats SET token=?, chat_id=?, name=?, active=?, alert_message=?, resend_period=? WHERE id=?',
+                                  (tok, chat, name, active, msg, period_val, cid))
                 elif action == 'Test':
                     if ids:
                         for cid in ids:
@@ -549,13 +556,13 @@ def telegram_settings():
                     else:
                         send_test_message(message='Test Message')
         conn.commit()
-        chats = c.execute('SELECT id, token, chat_id, active, alert_message, resend_period FROM telegram_chats').fetchall()
+        chats = c.execute('SELECT id, token, chat_id, name, active, alert_message, resend_period FROM telegram_chats').fetchall()
     rh_disp = resend_period // 60
     rm_disp = resend_period % 60
     chat_settings = []
     for row in chats:
-        rperiod = row[5] if row[5] is not None else resend_period
-        chat_settings.append((row[0], row[1], row[2], row[3], row[4], rperiod // 60, rperiod % 60))
+        rperiod = row[6] if row[6] is not None else resend_period
+        chat_settings.append((row[0], row[1], row[2], row[3], row[4], row[5], rperiod // 60, rperiod % 60))
     return render_template('telegram.html', chats=chat_settings, message=alert_message,
                            resend_hours=rh_disp, resend_minutes=rm_disp)
 

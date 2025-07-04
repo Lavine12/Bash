@@ -8,6 +8,8 @@
     <input type="text" name="token" class="telegram-input">
     <label>Chat ID:</label>
     <input type="text" name="chat_id" class="telegram-input">
+    <label>Name:</label>
+    <input type="text" name="chat_name" class="telegram-input">
     <label><input type="checkbox" name="active" checked> Active</label>
     <input type="text" name="alert_message" value="{{ message }}" class="telegram-input">
     <input type="number" name="resend_hours" value="{{ resend_hours }}" min="0" class="telegram-input" placeholder="hours">
@@ -30,6 +32,7 @@
                 <th><input type="checkbox" onclick="toggleAll(this)"></th>
                 <th>Bot Token</th>
                 <th>Chat ID</th>
+                <th>Name</th>
                 <th>Active</th>
                 <th>Alert Message</th>
                 <th>Hours</th>
@@ -42,10 +45,11 @@
                 <td><input type="checkbox" name="chat_id" value="{{ c[0] }}"></td>
                 <td><input type="text" name="token_{{ c[0] }}" value="{{ c[1] }}" class="telegram-input"></td>
                 <td><input type="text" name="chatid_{{ c[0] }}" value="{{ c[2] }}" class="telegram-input"></td>
-                <td><input type="checkbox" name="active_{{ c[0] }}" {% if c[3] %}checked{% endif %}></td>
-                <td><input type="text" name="alert_message_{{ c[0] }}" value="{{ c[4] }}" placeholder="{{ message }}" class="telegram-input"></td>
-                <td><input type="number" name="resend_hours_{{ c[0] }}" value="{{ c[5] }}" min="0" class="telegram-input" style="width:80px"></td>
-                <td><input type="number" name="resend_minutes_{{ c[0] }}" value="{{ c[6] }}" min="0" max="59" class="telegram-input" style="width:80px"></td>
+                <td><input type="text" name="chatname_{{ c[0] }}" value="{{ c[3] }}" class="telegram-input"></td>
+                <td><input type="checkbox" name="active_{{ c[0] }}" {% if c[4] %}checked{% endif %}></td>
+                <td><input type="text" name="alert_message_{{ c[0] }}" value="{{ c[5] }}" placeholder="{{ message }}" class="telegram-input"></td>
+                <td><input type="number" name="resend_hours_{{ c[0] }}" value="{{ c[6] }}" min="0" class="telegram-input" style="width:80px"></td>
+                <td><input type="number" name="resend_minutes_{{ c[0] }}" value="{{ c[7] }}" min="0" max="59" class="telegram-input" style="width:80px"></td>
             </tr>
         {% endfor %}
         </tbody>

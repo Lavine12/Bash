@@ -9,6 +9,9 @@
     <label>Chat ID:</label>
     <input type="text" name="chat_id" class="telegram-input">
     <label><input type="checkbox" name="active" checked> Active</label>
+    <input type="text" name="alert_message" placeholder="Alert message (optional)" class="telegram-input">
+    <input type="number" name="resend_hours" value="0" min="0" class="telegram-input" placeholder="hours">
+    <input type="number" name="resend_minutes" value="0" min="0" max="59" class="telegram-input" placeholder="minutes">
     <button type="submit">Add</button>
 </form>
 
@@ -19,8 +22,12 @@
     <input type="text" name="token" value="{{ c[1] }}" class="telegram-input">
     <input type="text" name="chat_id" value="{{ c[2] }}" class="telegram-input">
     <label><input type="checkbox" name="active" {% if c[3] %}checked{% endif %}> Active</label>
+    <input type="text" name="alert_message" value="{{ c[4] }}" placeholder="default message" class="telegram-input">
+    <input type="number" name="resend_hours" value="{{ c[5] }}" min="0" class="telegram-input"> hours
+    <input type="number" name="resend_minutes" value="{{ c[6] }}" min="0" max="59" class="telegram-input"> minutes
     <button type="submit" name="action" value="Update">Update</button>
     <button type="submit" name="action" value="Delete">Delete</button>
+    <button type="submit" name="action" value="Test">Test</button>
 </form>
 {% endfor %}
 
@@ -29,7 +36,7 @@
     <input type="hidden" name="action" value="SaveMsg">
     <label>Alert Message:</label>
     <input type="text" name="alert_message" value="{{ message }}" class="telegram-input">
-    <br>
+    <br><br>
     <label>Resend period:</label>
     <input type="number" name="resend_hours" value="0" placeholder="{{ resend_hours }}" min="0" class="telegram-input"> hours
     <input type="number" name="resend_minutes" value="0" placeholder="{{ resend_minutes }}" min="0" max="59" class="telegram-input"> minutes (0 = none)

@@ -3,7 +3,7 @@
 <h1>IP Addresses</h1>
 <form method="post">
     <input type="text" name="ip" placeholder="IP or CIDR range" required class="telegram-input">
-    <select name="group_id">
+    <select name="group_id" class="wide-select">
         <option value="">No Group</option>
         {% for g in groups %}
         <option value="{{ g[0] }}">{{ g[1] }}</option>
@@ -15,7 +15,7 @@
 <form method="post" action="{{ url_for('bulk_ips') }}">
     <textarea name="ips_bulk" rows="4" cols="40" placeholder="one IP or CIDR per line" class="telegram-input"></textarea>
     <br>
-    <select name="group_id">
+    <select name="group_id" class="wide-select">
         <option value="">No Group</option>
         {% for g in groups %}
         <option value="{{ g[0] }}">{{ g[1] }}</option>
@@ -24,7 +24,7 @@
     <input type="submit" value="Add List">
 </form>
 <form method="post" id="group-form" action="{{ url_for('set_group') }}">
-    <select name="group_id">
+    <select name="group_id" class="wide-select">
         <option value="">Ungroup</option>
         {% for g in groups %}
         <option value="{{ g[0] }}">{{ g[1] }}</option>

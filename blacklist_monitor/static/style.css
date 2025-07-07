@@ -160,3 +160,6 @@ button, input[type="submit"] {
     overflow-y: scroll;
     font-family: monospace;
 }
+.log-settings {
+    margin-bottom: 1em;
+}

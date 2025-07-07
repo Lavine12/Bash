@@ -113,3 +113,20 @@ button, input[type="submit"] {
     padding: 0.4em;
     margin: 0.2em 0;
 }
+
+/* wider date selector for schedule calendar */
+.date-input {
+    width: 180px;
+}
+
+/* shorter day dropdown */
+.day-select {
+    width: 120px;
+}
+
+/* spacing for add schedule row */
+#schedule-form label,
+#schedule-form input,
+#schedule-form select {
+    margin-right: 0.5em;
+}

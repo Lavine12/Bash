@@ -48,8 +48,8 @@ function updateScheduleDisplay(prefix) {
     const sel = weeklyWrap.querySelector('select');
     if (sel) {
       sel.disabled = !show;
-      if (show) sel.classList.add('active');
-      else sel.classList.remove('active');
+      // remove highlight color for weekly day dropdown
+      sel.classList.remove('active');
     }
   }
 

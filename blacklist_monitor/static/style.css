@@ -126,9 +126,6 @@ button, input[type="submit"] {
     border: 1px solid #ccc;
     border-radius: 4px;
 }
-.day-select.active {
-    background-color: #f0f8ff;
-}
 
 /* spacing for add schedule row */
 #schedule-form label,

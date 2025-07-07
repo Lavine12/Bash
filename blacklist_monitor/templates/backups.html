@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Backups</h1>
+<p>Recent status:
+{% if last_backup %}
+    {{ last_backup[1] }} - {{ last_backup[2] }}{% if last_backup[3] %} ({{ last_backup[3] }}){% endif %}
+{% else %}
+    No backups
+{% endif %}
+</p>
+<form method="post">
+    <input type="hidden" name="action" value="create">
+    <button type="submit">Run Backup Now</button>
+</form>
+<h2>Schedule</h2>
+<form method="post">
+    <input type="hidden" name="action" value="schedule">
+    <label>Type:</label>
+    <select name="type" class="wide-select">
+        <option value="" {% if sched_type == '' %}selected{% endif %}>None</option>
+        <option value="daily" {% if sched_type == 'daily' %}selected{% endif %}>Daily</option>
+        <option value="weekly" {% if sched_type == 'weekly' %}selected{% endif %}>Weekly</option>
+        <option value="monthly" {% if sched_type == 'monthly' %}selected{% endif %}>Monthly</option>
+    </select>
+    <label>Day:</label>
+    <input type="text" name="day" value="{{ sched_day }}" class="telegram-input">
+    <label>Hour:</label>
+    <input type="number" name="hour" value="{{ sched_hour }}" min="0" max="23" class="telegram-input">
+    <label>Minute:</label>
+    <input type="number" name="minute" value="{{ sched_minute }}" min="0" max="59" class="telegram-input">
+    <input type="submit" value="Update">
+</form>
+<h2>Retention</h2>
+<form method="post">
+    <input type="hidden" name="action" value="retention">
+    <label>Keep days:</label>
+    <input type="number" name="days" value="{{ retention_days }}" min="0" class="telegram-input">
+    <input type="submit" value="Save">
+</form>
+<h2>Existing Backups</h2>
+<form method="post">
+    <input type="hidden" name="action" value="delete">
+    <button type="submit">Delete Selected</button>
+    <table>
+        <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>ID</th><th>Date</th><th>Status</th><th>Error</th></tr>
+        {% for b in backups %}
+        <tr>
+            <td><input type="checkbox" name="backup_id" value="{{ b[0] }}"></td>
+            <td>{{ b[0] }}</td>
+            <td>{{ b[1] }}</td>
+            <td>{{ b[2] }}</td>
+            <td>{{ b[3] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</form>
+<h2>Search</h2>
+<form method="get">
+    <label>From:</label>
+    <input type="date" name="start" value="{{ request.args.start }}" class="telegram-input">
+    <label>To:</label>
+    <input type="date" name="end" value="{{ request.args.end }}" class="telegram-input">
+    <label>IP:</label>
+    <input type="text" name="ip" value="{{ request.args.ip }}" class="telegram-input">
+    <label>DNSBL:</label>
+    <input type="text" name="dnsbl" value="{{ request.args.dnsbl }}" class="telegram-input">
+    <label>Listed:</label>
+    <select name="listed" class="wide-select">
+        <option value="" {% if request.args.listed == '' %}selected{% endif %}></option>
+        <option value="1" {% if request.args.listed == '1' %}selected{% endif %}>Yes</option>
+        <option value="0" {% if request.args.listed == '0' %}selected{% endif %}>No</option>
+    </select>
+    <input type="submit" value="Search">
+</form>
+{% if results %}
+<table>
+<tr><th>Date</th><th>IP</th><th>DNSBL</th><th>Listed</th><th>Checked At</th></tr>
+{% for r in results %}
+<tr>
+    <td>{{ r[0] }}</td>
+    <td>{{ r[1] }}</td>
+    <td>{{ r[2] }}</td>
+    <td>{{ 'yes' if r[3] else 'no' }}</td>
+    <td>{{ r[4] }}</td>
+</tr>
+{% endfor %}
+</table>
+{% endif %}
+{% endblock %}

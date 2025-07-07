@@ -11,6 +11,7 @@ Features:
 - Periodic checks run according to the configured schedule.
 - Alerts are sent to a Telegram chat when an IP is blacklisted.
 - Dashboard shows last and next check times along with blacklist results.
+- Backup past check results with searchable history and configurable schedule.
 
 ## Setup
 

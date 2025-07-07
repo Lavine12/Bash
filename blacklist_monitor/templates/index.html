@@ -7,7 +7,7 @@
     <button type="submit" formaction="{{ url_for('exclude_selected') }}">Exclude Selected</button>
     <button type="submit" formaction="{{ url_for('include_selected') }}">Include Selected</button>
     {% for g in groups %}
-        <h3 onclick="toggle('g{{ g[0] }}')" class="group-header">{{ g[1] }}</h3>
+        <h3 onclick="toggle('g{{ g[0] }}')" class="group-header">{{ g[1] }}{% if group_next.get(g[0]) %} - {{ group_next[g[0]] }}{% endif %}</h3>
         <div id="g{{ g[0] }}" data-collapse>
         <table>
             <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Last Checked</th><th>Next Run</th><th>Status</th><th>DNSBL</th><th>Check Excluded</th></tr>
@@ -30,7 +30,7 @@
     {% set ungroup = [] %}
     {% for ip in ips %}{% if not ip[3] %}{% set _ = ungroup.append(ip) %}{% endif %}{% endfor %}
     {% if ungroup %}
-        <h3 onclick="toggle('g0')" class="group-header">Ungrouped</h3>
+        <h3 onclick="toggle('g0')" class="group-header">Ungrouped{% if group_next.get(None) %} - {{ group_next[None] }}{% endif %}</h3>
         <div id="g0" data-collapse>
         <table>
             <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Last Checked</th><th>Next Run</th><th>Status</th><th>DNSBL</th><th>Check Excluded</th></tr>

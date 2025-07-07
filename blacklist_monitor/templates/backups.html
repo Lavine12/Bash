@@ -96,7 +96,7 @@
                     </select>
                 </span>
                 <span id="row-{{ s.id }}-day-monthly">
-                    <input type="date" name="day_{{ s.id }}" class="telegram-time-input date-input" {% if s.type=='monthly' and s.day %}value="{{ '2000-01-' + '%02d'|format(s.day|int) }}"{% endif %}>
+                    <input type="date" name="day_{{ s.id }}" class="telegram-time-input date-input" {% if s.type=='monthly' and s.day %}value="{{ s.date_value }}"{% endif %}>
                 </span>
             </td>
             <td>

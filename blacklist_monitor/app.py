@@ -633,8 +633,9 @@ def backups_view():
     if request.method == 'POST':
         action = request.form.get('action', '')
         if action == 'create':
-            bid = create_backup()
-            return redirect(url_for('backups_view', view=bid or ''))
+            create_backup()
+            # redirect without view parameter so backup data is hidden
+            return redirect(url_for('backups_view'))
         elif action == 'view':
             ids = request.form.getlist('backup_id')
             if ids:
@@ -738,6 +739,9 @@ def backups_view():
                 h -= 12
         if h == 0:
             h = 12
+        date_val = ''
+        if stype == 'monthly' and day:
+            date_val = f"2000-01-{int(day):02d}"
         display_schedules.append({'id': sid,
                                  'group_id': gid,
                                  'group_name': gname,
@@ -745,7 +749,8 @@ def backups_view():
                                  'day': day,
                                  'hour': h,
                                  'minute': minute,
-                                 'ampm': ampm})
+                                 'ampm': ampm,
+                                 'date_value': date_val})
 
     edit_schedule = None
     if request.args.get('edit'):

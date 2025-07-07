@@ -48,3 +48,18 @@ docker run -p 5000:5000 \
 ```
 
 The web interface will then be available at `http://localhost:5000`.
+
+## Logs
+
+The sidebar includes a **Logs** page that streams recent application output.
+This allows you to watch requests in real time without accessing the console.
+
+Example output:
+
+```
+124.217.240.99 - - [07/Jul/2025 17:14:03] "GET /ips HTTP/1.1" 200 -
+124.217.240.99 - - [07/Jul/2025 17:14:03] "GET /static/style.css HTTP/1.1" 304 -
+124.217.240.99 - - [07/Jul/2025 17:14:03] "GET /static/script.js HTTP/1.1" 304 -
+124.217.240.99 - - [07/Jul/2025 17:14:04] "GET / HTTP/1.1" 200 -
+```
+

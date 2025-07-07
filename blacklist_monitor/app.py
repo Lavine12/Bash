@@ -6,6 +6,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import ipaddress
 import dns.resolver
 import datetime
+import logging
+from collections import deque
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data.db')
 DB_TIMEOUT = 30  # seconds
@@ -15,6 +17,22 @@ TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 app = Flask(__name__)
 CHECK_INTERVAL_MINUTES = int(float(os.environ.get('CHECK_INTERVAL_HOURS', '0')) * 60)
 sched = BackgroundScheduler()
+
+# Keep recent logs for display in the web interface
+log_history = deque(maxlen=200)
+
+
+class MemoryLogHandler(logging.Handler):
+    """Collect log records in memory."""
+    def emit(self, record):
+        log_history.append(self.format(record))
+
+
+log_handler = MemoryLogHandler()
+log_handler.setFormatter(logging.Formatter('%(message)s'))
+logging.getLogger('werkzeug').addHandler(log_handler)
+logging.getLogger('werkzeug').setLevel(logging.INFO)
+logging.getLogger().addHandler(log_handler)
 
 
 def get_setting(key, default=''):
@@ -1055,7 +1073,14 @@ def schedule_check_jobs():
             sched.add_job(scheduled_check, "cron", day=day or "1", hour=hour, minute=minute, id=job_id, kwargs=kwargs)
 
 
+@app.route('/logs')
+def view_logs():
+    return render_template('logs.html')
 
+
+@app.route('/log_feed')
+def log_feed():
+    return '\n'.join(log_history)
 if __name__ == '__main__':
     init_db()
     schedule_check_jobs()

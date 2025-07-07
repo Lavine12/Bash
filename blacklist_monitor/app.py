@@ -69,6 +69,20 @@ def init_db():
             key TEXT PRIMARY KEY,
             value TEXT
         )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS backups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT,
+            status TEXT,
+            error TEXT
+        )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS backup_check_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            backup_id INTEGER,
+            ip_id INTEGER,
+            dnsbl_id INTEGER,
+            listed INTEGER,
+            checked_at TEXT
+        )''')
         # ensure upgrade columns exist
         try:
             c.execute('ALTER TABLE ip_addresses ADD COLUMN group_id INTEGER')
@@ -96,6 +110,16 @@ def init_db():
                   ('RESEND_PERIODIC', '1'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('RESEND_PERIOD', '0'))
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('BACKUP_RETENTION_DAYS', '30'))
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('BACKUP_SCHEDULE_TYPE', ''))
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('BACKUP_SCHEDULE_DAY', ''))
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('BACKUP_SCHEDULE_HOUR', '0'))
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('BACKUP_SCHEDULE_MINUTE', '0'))
         if TELEGRAM_TOKEN:
             c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                       ('TELEGRAM_TOKEN', TELEGRAM_TOKEN))
@@ -594,14 +618,148 @@ def schedule_view():
     return render_template('schedule.html', hours=h, minutes=m, next_run=next_run)
 
 
+@app.route('/backups', methods=['GET', 'POST'])
+def backups_view():
+    if request.method == 'POST':
+        action = request.form.get('action', '')
+        if action == 'create':
+            create_backup()
+        elif action == 'delete':
+            ids = request.form.getlist('backup_id')
+            with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+                c = conn.cursor()
+                for bid in ids:
+                    c.execute('DELETE FROM backup_check_results WHERE backup_id=?', (bid,))
+                    c.execute('DELETE FROM backups WHERE id=?', (bid,))
+                conn.commit()
+        elif action == 'retention':
+            days = request.form.get('days', '').strip()
+            if days.isdigit():
+                set_setting('BACKUP_RETENTION_DAYS', days)
+        elif action == 'schedule':
+            stype = request.form.get('type', '')
+            day = request.form.get('day', '')
+            hour = request.form.get('hour', '0')
+            minute = request.form.get('minute', '0')
+            set_setting('BACKUP_SCHEDULE_TYPE', stype)
+            set_setting('BACKUP_SCHEDULE_DAY', day)
+            set_setting('BACKUP_SCHEDULE_HOUR', hour)
+            set_setting('BACKUP_SCHEDULE_MINUTE', minute)
+            schedule_backup_job()
+        return redirect(url_for('backups_view'))
+
+    retention_days = int(get_setting('BACKUP_RETENTION_DAYS', '30'))
+    sched_type = get_setting('BACKUP_SCHEDULE_TYPE', '')
+    sched_day = get_setting('BACKUP_SCHEDULE_DAY', '')
+    sched_hour = int(get_setting('BACKUP_SCHEDULE_HOUR', '0'))
+    sched_minute = int(get_setting('BACKUP_SCHEDULE_MINUTE', '0'))
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+        c = conn.cursor()
+        backups = c.execute('SELECT id, created_at, status, error FROM backups ORDER BY created_at DESC').fetchall()
+    last_backup = backups[0] if backups else None
+
+    results = None
+    if request.args:
+        q = '''SELECT b.created_at, ip_addresses.ip, dnsbls.domain, r.listed, r.checked_at
+                FROM backup_check_results r
+                JOIN backups b ON b.id=r.backup_id
+                JOIN ip_addresses ON ip_addresses.id=r.ip_id
+                JOIN dnsbls ON dnsbls.id=r.dnsbl_id WHERE 1=1'''
+        params = []
+        start = request.args.get('start', '')
+        end = request.args.get('end', '')
+        ip = request.args.get('ip', '').strip()
+        dnsbl = request.args.get('dnsbl', '').strip()
+        listed = request.args.get('listed', '')
+        if start:
+            q += ' AND b.created_at >= ?'
+            params.append(start)
+        if end:
+            q += ' AND b.created_at <= ?'
+            params.append(end + ' 23:59:59')
+        if ip:
+            q += ' AND ip_addresses.ip LIKE ?'
+            params.append(ip)
+        if dnsbl:
+            q += ' AND dnsbls.domain LIKE ?'
+            params.append(dnsbl)
+        if listed in ('0', '1'):
+            q += ' AND r.listed = ?'
+            params.append(int(listed))
+        q += ' ORDER BY b.created_at DESC LIMIT 100'
+        with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+            c = conn.cursor()
+            results = c.execute(q, params).fetchall()
+
+    return render_template('backups.html', backups=backups, last_backup=last_backup,
+                           retention_days=retention_days, sched_type=sched_type,
+                           sched_day=sched_day, sched_hour=sched_hour,
+                           sched_minute=sched_minute, results=results)
+
+
 def scheduled_check():
     if CHECK_INTERVAL_MINUTES > 0:
         check_blacklists()
+
+
+def cleanup_old_backups():
+    days = int(get_setting('BACKUP_RETENTION_DAYS', '0') or 0)
+    if days <= 0:
+        return
+    cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+        c = conn.cursor()
+        ids = [r[0] for r in c.execute('SELECT id FROM backups WHERE created_at < ?', (cutoff,))]
+        for bid in ids:
+            c.execute('DELETE FROM backup_check_results WHERE backup_id=?', (bid,))
+            c.execute('DELETE FROM backups WHERE id=?', (bid,))
+        conn.commit()
+
+
+def create_backup():
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    bid = None
+    try:
+        with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+            c = conn.cursor()
+            c.execute('INSERT INTO backups (created_at, status) VALUES (?, ?)', (timestamp, 'running'))
+            bid = c.lastrowid
+            rows = c.execute('SELECT ip_id, dnsbl_id, listed, checked_at FROM check_results').fetchall()
+            for r in rows:
+                c.execute('INSERT INTO backup_check_results (backup_id, ip_id, dnsbl_id, listed, checked_at) VALUES (?, ?, ?, ?, ?)', (bid, r[0], r[1], r[2], r[3]))
+            c.execute('UPDATE backups SET status=? WHERE id=?', ('success', bid))
+            conn.commit()
+    except Exception as e:
+        with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+            c = conn.cursor()
+            if bid is None:
+                c.execute('INSERT INTO backups (created_at, status, error) VALUES (?, ?, ?)', (timestamp, 'failed', str(e)))
+            else:
+                c.execute('UPDATE backups SET status=?, error=? WHERE id=?', ('failed', str(e), bid))
+            conn.commit()
+    cleanup_old_backups()
+
+
+def schedule_backup_job():
+    job = sched.get_job('backup_job')
+    if job:
+        sched.remove_job('backup_job')
+    stype = get_setting('BACKUP_SCHEDULE_TYPE', '')
+    hour = int(get_setting('BACKUP_SCHEDULE_HOUR', '0') or 0)
+    minute = int(get_setting('BACKUP_SCHEDULE_MINUTE', '0') or 0)
+    day = get_setting('BACKUP_SCHEDULE_DAY', '')
+    if stype == 'daily':
+        sched.add_job(create_backup, 'cron', hour=hour, minute=minute, id='backup_job')
+    elif stype == 'weekly':
+        sched.add_job(create_backup, 'cron', day_of_week=day or 'mon', hour=hour, minute=minute, id='backup_job')
+    elif stype == 'monthly':
+        sched.add_job(create_backup, 'cron', day=day or '1', hour=hour, minute=minute, id='backup_job')
 
 
 if __name__ == '__main__':
     init_db()
     if CHECK_INTERVAL_MINUTES > 0:
         sched.add_job(scheduled_check, 'interval', minutes=CHECK_INTERVAL_MINUTES, id='blacklist_check')
+    schedule_backup_job()
     sched.start()
     app.run(host='0.0.0.0', port=5000)

@@ -651,14 +651,25 @@ def backups_view():
             minute = int(request.form.get('minute', '0') or 0)
             ampm = request.form.get('ampm', 'am')
             group_id = request.form.get('group_id') or None
+            sched_id = request.form.get('schedule_id')
             if ampm == 'pm' and hour < 12:
                 hour += 12
             if ampm == 'am' and hour == 12:
                 hour = 0
+            if stype == 'monthly' and day:
+                try:
+                    day = str(int(day.split('-')[-1]))
+                except Exception:
+                    day = ''
             with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
                 c = conn.cursor()
-                c.execute('INSERT INTO backup_schedules (group_id, type, day, hour, minute) VALUES (?, ?, ?, ?, ?)',
-                          (group_id, stype, day, hour, minute))
+                if sched_id:
+                    c.execute('''UPDATE backup_schedules SET group_id=?, type=?, day=?, hour=?, minute=?
+                                 WHERE id=?''',
+                              (group_id, stype, day, hour, minute, sched_id))
+                else:
+                    c.execute('INSERT INTO backup_schedules (group_id, type, day, hour, minute) VALUES (?, ?, ?, ?, ?)',
+                              (group_id, stype, day, hour, minute))
                 conn.commit()
             schedule_backup_jobs()
         elif action == 'schedule_delete':
@@ -692,6 +703,35 @@ def backups_view():
             h = 12
         display_schedules.append((sid, gname, stype, day, f"{h:02d}:{minute:02d} {ampm}"))
 
+    edit_schedule = None
+    if request.args.get('edit'):
+        sid = request.args.get('edit')
+        with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+            c = conn.cursor()
+            row = c.execute('SELECT id, group_id, type, day, hour, minute FROM backup_schedules WHERE id=?', (sid,)).fetchone()
+        if row:
+            rid, g_id, typ, d, h, m = row
+            am = 'AM'
+            hour12 = h
+            if hour12 >= 12:
+                am = 'PM'
+                if hour12 > 12:
+                    hour12 -= 12
+            if hour12 == 0:
+                hour12 = 12
+            date_val = ''
+            if typ == 'monthly' and d:
+                date_val = f"2000-01-{int(d):02d}"
+            edit_schedule = {
+                'id': rid,
+                'group_id': g_id,
+                'type': typ,
+                'day': d,
+                'hour': hour12,
+                'minute': m,
+                'ampm': am,
+                'date_value': date_val,
+            }
     results = None
     if request.args:
         q = '''SELECT b.created_at, ip_addresses.ip, dnsbls.domain, r.listed, r.checked_at
@@ -727,7 +767,7 @@ def backups_view():
 
     return render_template('backups.html', backups=backups, last_backup=last_backup,
                            retention_days=retention_days, schedules=display_schedules,
-                           groups=groups, results=results)
+                           groups=groups, results=results, edit_schedule=edit_schedule)
 
 
 def scheduled_check():

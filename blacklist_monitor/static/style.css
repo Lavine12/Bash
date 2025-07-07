@@ -86,3 +86,8 @@ button, input[type="submit"] {
 .action-buttons {
     margin-bottom: 1.5em;
 }
+
+#day-weekly,
+#day-monthly {
+    display: none;
+}

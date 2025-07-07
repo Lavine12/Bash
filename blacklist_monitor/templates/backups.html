@@ -13,22 +13,61 @@
     <button type="submit">Run Backup Now</button>
 </form>
 <h2>Schedule</h2>
-<form method="post">
-    <input type="hidden" name="action" value="schedule">
-    <label>Type:</label>
-    <select name="type" class="wide-select">
-        <option value="" {% if sched_type == '' %}selected{% endif %}>None</option>
-        <option value="daily" {% if sched_type == 'daily' %}selected{% endif %}>Daily</option>
-        <option value="weekly" {% if sched_type == 'weekly' %}selected{% endif %}>Weekly</option>
-        <option value="monthly" {% if sched_type == 'monthly' %}selected{% endif %}>Monthly</option>
+<form method="post" id="schedule-form">
+    <input type="hidden" name="action" value="schedule_add">
+    <label>Group:</label>
+    <select name="group_id" class="wide-select">
+        <option value="">All Groups</option>
+        {% for g in groups %}
+        <option value="{{ g[0] }}">{{ g[1] }}</option>
+        {% endfor %}
     </select>
-    <label>Day:</label>
-    <input type="text" name="day" value="{{ sched_day }}" class="telegram-input">
-    <label>Hour:</label>
-    <input type="number" name="hour" value="{{ sched_hour }}" min="0" max="23" class="telegram-input">
-    <label>Minute:</label>
-    <input type="number" name="minute" value="{{ sched_minute }}" min="0" max="59" class="telegram-input">
-    <input type="submit" value="Update">
+    <label>Type:</label>
+    <select name="type" id="schedule-type" class="wide-select" onchange="updateScheduleInputs()">
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+    </select>
+    <span id="day-weekly">
+        <select name="day" class="wide-select">
+            <option value="mon">Mon</option>
+            <option value="tue">Tue</option>
+            <option value="wed">Wed</option>
+            <option value="thu">Thu</option>
+            <option value="fri">Fri</option>
+            <option value="sat">Sat</option>
+            <option value="sun">Sun</option>
+        </select>
+    </span>
+    <span id="day-monthly">
+        <input type="number" name="day" min="1" max="31" class="telegram-time-input">
+    </span>
+    <label>Time:</label>
+    <input type="number" name="hour" min="1" max="12" class="telegram-time-input">
+    <input type="number" name="minute" min="0" max="59" class="telegram-time-input">
+    <select name="ampm" class="telegram-input">
+        <option value="am">AM</option>
+        <option value="pm">PM</option>
+    </select>
+    <button type="submit">Add</button>
+</form>
+<form method="post">
+    <input type="hidden" name="action" value="schedule_delete">
+    <div class="action-buttons">
+        <button type="submit">Delete Selected</button>
+    </div>
+    <table>
+        <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>Group</th><th>Type</th><th>Day</th><th>Time</th></tr>
+        {% for s in schedules %}
+        <tr>
+            <td><input type="checkbox" name="schedule_id" value="{{ s[0] }}"></td>
+            <td>{{ s[1] or 'All' }}</td>
+            <td>{{ s[2] }}</td>
+            <td>{{ s[3] }}</td>
+            <td>{{ s[4] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
 </form>
 <h2>Retention</h2>
 <form method="post">
@@ -40,7 +79,9 @@
 <h2>Existing Backups</h2>
 <form method="post">
     <input type="hidden" name="action" value="delete">
-    <button type="submit">Delete Selected</button>
+    <div class="action-buttons">
+        <button type="submit">Delete Selected</button>
+    </div>
     <table>
         <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>ID</th><th>Date</th><th>Status</th><th>Error</th></tr>
         {% for b in backups %}

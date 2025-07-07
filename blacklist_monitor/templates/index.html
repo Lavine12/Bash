@@ -2,6 +2,8 @@
 {% block content %}
 <h1>Monitored IPs</h1>
 <p>Total IPs: {{ ip_count }}</p>
+<p>Load: {{ '%.2f'|format(load1) }} {{ '%.2f'|format(load5) }} {{ '%.2f'|format(load15) }},
+CPU: {{ cpu }}%, Mem: {{ mem }}%, Disk: {{ disk }}%</p>
 <form method="post" action="{{ url_for('check_selected') }}">
     <button type="submit">Check Selected</button>
     <button type="submit" formaction="{{ url_for('exclude_selected') }}">Exclude Selected</button>

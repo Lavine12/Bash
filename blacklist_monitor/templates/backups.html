@@ -111,6 +111,16 @@
         {% endfor %}
     </table>
 </form>
+<h2>Log Backup</h2>
+<form method="post">
+    <input type="hidden" name="action" value="log_schedule">
+    <label>Hour:</label>
+    <input type="number" name="log_hour" min="0" max="23" class="telegram-time-input" value="{{ log_hour }}">
+    <label>Minute:</label>
+    <input type="number" name="log_minute" min="0" max="59" class="telegram-time-input" value="{{ log_minute }}">
+    <input type="submit" value="Save">
+    <p>Set both hour and minute to 0 to disable log backups.</p>
+</form>
 <h2>Retention</h2>
 <form method="post">
     <input type="hidden" name="action" value="retention">

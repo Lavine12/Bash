@@ -1,8 +1,10 @@
 import os
 import sqlite3
 import requests
+import re
 from flask import Flask, render_template, request, redirect, url_for
 from apscheduler.schedulers.background import BackgroundScheduler
+import psutil
 import ipaddress
 import dns.resolver
 import datetime
@@ -26,6 +28,8 @@ class MemoryLogHandler(logging.Handler):
     """Collect log records in memory."""
     def emit(self, record):
         msg = self.format(record)
+        # strip ANSI color codes that may appear in Werkzeug logs
+        msg = re.sub(r'\x1b\[[0-9;]*m', '', msg)
         if "GET /log_feed" in msg:
             return
         log_history.append(msg)
@@ -169,6 +173,10 @@ def init_db():
                   ('BACKUP_SCHEDULE_HOUR', '0'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('BACKUP_SCHEDULE_MINUTE', '0'))
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('LOG_BACKUP_HOUR', '0'))
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('LOG_BACKUP_MINUTE', '0'))
         if TELEGRAM_TOKEN:
             c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                       ('TELEGRAM_TOKEN', TELEGRAM_TOKEN))
@@ -210,9 +218,15 @@ def index():
                 group_next[gid] = t
     group_next_map = {gid: t.strftime('%d/%m/%Y %I:%M %p').lower()
                        for gid, t in group_next.items() if t}
+    load1, load5, load15 = os.getloadavg()
+    cpu = psutil.cpu_percent(interval=0.1)
+    mem = psutil.virtual_memory().percent
+    disk = psutil.disk_usage('/').percent
     return render_template('index.html', ips=ips, ip_count=ip_count,
                            groups=groups, dnsbl_map=dnsbl_map,
-                           group_next=group_next_map)
+                           group_next=group_next_map,
+                           load1=load1, load5=load5, load15=load15,
+                           cpu=cpu, mem=mem, disk=disk)
 
 @app.route('/ips', methods=['GET', 'POST'])
 def manage_ips():
@@ -863,6 +877,12 @@ def backups_view():
                     c.execute('DELETE FROM backup_schedules WHERE id=?', (sid,))
                 conn.commit()
             schedule_backup_jobs()
+        elif action == 'log_schedule':
+            hour = int(request.form.get('log_hour', '0') or 0)
+            minute = int(request.form.get('log_minute', '0') or 0)
+            set_setting('LOG_BACKUP_HOUR', str(hour))
+            set_setting('LOG_BACKUP_MINUTE', str(minute))
+            schedule_log_backup_job()
         return redirect(url_for('backups_view'))
 
     retention_days = int(get_setting('BACKUP_RETENTION_DAYS', '0'))
@@ -901,6 +921,9 @@ def backups_view():
                                  'minute': minute,
                                  'ampm': ampm,
                                  'date_value': date_val})
+
+    log_hour = int(get_setting('LOG_BACKUP_HOUR', '0') or 0)
+    log_minute = int(get_setting('LOG_BACKUP_MINUTE', '0') or 0)
 
     edit_schedule = None
     if request.args.get('edit'):
@@ -974,7 +997,8 @@ def backups_view():
                            retention_days=retention_days, retention_count=retention_count,
                            schedules=display_schedules, groups=groups,
                            results=results, edit_schedule=edit_schedule,
-                           view_id=view_id)
+                           view_id=view_id, log_hour=log_hour,
+                           log_minute=log_minute)
 
 
 def scheduled_check(group_id=None):
@@ -1040,6 +1064,30 @@ def create_backup():
     return bid
 
 
+def backup_logs():
+    """Write current in-memory logs to a timestamped file."""
+    if not log_history:
+        return
+    path = os.path.join(os.path.dirname(__file__), 'log_backups')
+    os.makedirs(path, exist_ok=True)
+    fname = datetime.datetime.now().strftime('log_%Y%m%d_%H%M%S.txt')
+    with open(os.path.join(path, fname), 'w') as f:
+        f.write('\n'.join(log_history))
+
+
+def schedule_log_backup_job():
+    job_id = 'log_backup_job'
+    try:
+        sched.remove_job(job_id)
+    except Exception:
+        pass
+    hour = int(get_setting('LOG_BACKUP_HOUR', '0') or 0)
+    minute = int(get_setting('LOG_BACKUP_MINUTE', '0') or 0)
+    if hour == 0 and minute == 0:
+        return
+    sched.add_job(backup_logs, 'cron', hour=hour, minute=minute, id=job_id)
+
+
 def schedule_backup_jobs():
     # remove existing jobs
     for job in sched.get_jobs():
@@ -1088,5 +1136,6 @@ if __name__ == '__main__':
     init_db()
     schedule_check_jobs()
     schedule_backup_jobs()
+    schedule_log_backup_job()
     sched.start()
     app.run(host='0.0.0.0', port=5000)

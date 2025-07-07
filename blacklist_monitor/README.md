@@ -53,6 +53,7 @@ The web interface will then be available at `http://localhost:5000`.
 
 The sidebar includes a **Logs** page that streams recent application output.
 This allows you to watch requests in real time without accessing the console.
+You can configure how many recent entries are kept using the *History size* setting.
 
 Example output:
 

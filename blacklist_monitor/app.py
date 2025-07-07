@@ -672,6 +672,31 @@ def backups_view():
                               (group_id, stype, day, hour, minute))
                 conn.commit()
             schedule_backup_jobs()
+        elif action == 'schedule_update':
+            ids = request.form.getlist('schedule_id')
+            with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+                c = conn.cursor()
+                for sid in ids:
+                    stype = request.form.get(f'type_{sid}', '')
+                    day = request.form.get(f'day_{sid}', '')
+                    hour = int(request.form.get(f'hour_{sid}', '0') or 0)
+                    minute = int(request.form.get(f'minute_{sid}', '0') or 0)
+                    ampm = request.form.get(f'ampm_{sid}', 'am')
+                    group_id = request.form.get(f'group_id_{sid}') or None
+                    if ampm == 'pm' and hour < 12:
+                        hour += 12
+                    if ampm == 'am' and hour == 12:
+                        hour = 0
+                    if stype == 'monthly' and day:
+                        try:
+                            day = str(int(day.split('-')[-1]))
+                        except Exception:
+                            day = ''
+                    c.execute('''UPDATE backup_schedules SET group_id=?, type=?, day=?, hour=?, minute=?
+                                 WHERE id=?''',
+                              (group_id, stype, day, hour, minute, sid))
+                conn.commit()
+            schedule_backup_jobs()
         elif action == 'schedule_delete':
             ids = request.form.getlist('schedule_id')
             with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
@@ -686,13 +711,13 @@ def backups_view():
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         backups = c.execute('SELECT id, created_at, status, error FROM backups ORDER BY created_at DESC').fetchall()
-        schedules = c.execute('''SELECT backup_schedules.id, ip_groups.name, backup_schedules.type,
+        schedules = c.execute('''SELECT backup_schedules.id, backup_schedules.group_id, ip_groups.name, backup_schedules.type,
                                        backup_schedules.day, backup_schedules.hour, backup_schedules.minute
                                 FROM backup_schedules LEFT JOIN ip_groups ON ip_groups.id=backup_schedules.group_id''').fetchall()
         groups = c.execute('SELECT id, name FROM ip_groups').fetchall()
     last_backup = backups[0] if backups else None
     display_schedules = []
-    for sid, gname, stype, day, hour, minute in schedules:
+    for sid, gid, gname, stype, day, hour, minute in schedules:
         ampm = 'AM'
         h = hour
         if h >= 12:
@@ -701,7 +726,14 @@ def backups_view():
                 h -= 12
         if h == 0:
             h = 12
-        display_schedules.append((sid, gname, stype, day, f"{h:02d}:{minute:02d} {ampm}"))
+        display_schedules.append({'id': sid,
+                                 'group_id': gid,
+                                 'group_name': gname,
+                                 'type': stype,
+                                 'day': day,
+                                 'hour': h,
+                                 'minute': minute,
+                                 'ampm': ampm})
 
     edit_schedule = None
     if request.args.get('edit'):

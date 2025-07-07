@@ -1,0 +1,99 @@
+<h1>Schedule</h2>
+<form method="post" id="schedule-form">
+    <input type="hidden" name="action" value="schedule_add">
+    {% if edit_schedule %}
+    <input type="hidden" name="schedule_id" value="{{ edit_schedule.id }}">
+    {% endif %}
+    <label>Group:</label>
+    <select name="group_id" class="short-select">
+        <option value="">All Groups</option>
+        {% for g in groups %}
+        <option value="{{ g[0] }}" {% if edit_schedule and g[0]==edit_schedule.group_id %}selected{% endif %}>{{ g[1] }}</option>
+        {% endfor %}
+    </select>
+    <input type="hidden" name="type" id="schedule-type" value="{{ edit_schedule.type if edit_schedule else 'daily' }}">
+    <label><input type="checkbox" id="schedule-daily" onclick="selectType('schedule','daily')" {% if not edit_schedule or edit_schedule.type=='daily' %}checked{% endif %}>Daily</label>
+    <label><input type="checkbox" id="schedule-weekly" onclick="selectType('schedule','weekly')" {% if edit_schedule and edit_schedule.type=='weekly' %}checked{% endif %}>Weekly</label>
+    <label><input type="checkbox" id="schedule-monthly" onclick="selectType('schedule','monthly')" {% if edit_schedule and edit_schedule.type=='monthly' %}checked{% endif %}>Monthly</label>
+    <span id="schedule-day-weekly">
+        <select name="day" class="day-select">
+            <option value="mon" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='mon' %}selected{% endif %}>Mon</option>
+            <option value="tue" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='tue' %}selected{% endif %}>Tue</option>
+            <option value="wed" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='wed' %}selected{% endif %}>Wed</option>
+            <option value="thu" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='thu' %}selected{% endif %}>Thu</option>
+            <option value="fri" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='fri' %}selected{% endif %}>Fri</option>
+            <option value="sat" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='sat' %}selected{% endif %}>Sat</option>
+            <option value="sun" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='sun' %}selected{% endif %}>Sun</option>
+        </select>
+    </span>
+    <span id="schedule-day-monthly">
+        <input type="date" name="day" class="telegram-time-input date-input" {% if edit_schedule and edit_schedule.type=='monthly' %}value="{{ edit_schedule.date_value }}"{% endif %}>
+    </span>
+    <label>Time:</label>
+    <input type="number" name="hour" min="1" max="12" class="telegram-time-input" {% if edit_schedule %}value="{{ edit_schedule.hour }}"{% endif %}>
+    <input type="number" name="minute" min="0" max="59" class="telegram-time-input" {% if edit_schedule %}value="{{ edit_schedule.minute }}"{% endif %}>
+    <select name="ampm" class="ampm-select">
+        <option value="am" {% if edit_schedule and edit_schedule.ampm=='am' %}selected{% endif %}>AM</option>
+        <option value="pm" {% if edit_schedule and edit_schedule.ampm=='pm' %}selected{% endif %}>PM</option>
+    </select>
+    <button type="submit">{% if edit_schedule %}Update{% else %}Add{% endif %}</button>
+    {% if edit_schedule %}<a href="{{ url_for('schedule_view') }}">Cancel</a>{% endif %}
+</form>
+<form method="post" id="schedule-delete-form">
+    <div class="action-buttons">
+        <button type="submit" name="action" value="schedule_update">Update Selected</button>
+        <button type="submit" name="action" value="schedule_delete">Delete Selected</button>
+    </div>
+    <table class="schedule-table">
+        <tr>
+            <th><input type="checkbox" onclick="toggleAll(this)"></th>
+            <th>Group</th>
+            <th>Type</th>
+            <th>Day</th>
+            <th>Time</th>
+        </tr>
+        {% for s in schedules %}
+        <tr class="schedule-row" data-row-id="{{ s.id }}">
+            <td><input type="checkbox" name="schedule_id" value="{{ s.id }}"></td>
+            <td>
+                <select name="group_id_{{ s.id }}" class="short-select">
+                    <option value="">All Groups</option>
+                    {% for g in groups %}
+                    <option value="{{ g[0] }}" {% if s.group_id==g[0] %}selected{% endif %}>{{ g[1] }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input type="hidden" name="type_{{ s.id }}" id="row-{{ s.id }}-type" value="{{ s.type }}">
+                <label><input type="checkbox" id="row-{{ s.id }}-daily" onclick="selectType('row-{{ s.id }}','daily')" {% if s.type=='daily' %}checked{% endif %}>Daily</label>
+                <label><input type="checkbox" id="row-{{ s.id }}-weekly" onclick="selectType('row-{{ s.id }}','weekly')" {% if s.type=='weekly' %}checked{% endif %}>Weekly</label>
+                <label><input type="checkbox" id="row-{{ s.id }}-monthly" onclick="selectType('row-{{ s.id }}','monthly')" {% if s.type=='monthly' %}checked{% endif %}>Monthly</label>
+            </td>
+            <td>
+                <span id="row-{{ s.id }}-day-weekly">
+                    <select name="day_{{ s.id }}" class="day-select">
+                        <option value="mon" {% if s.type=='weekly' and s.day=='mon' %}selected{% endif %}>Mon</option>
+                        <option value="tue" {% if s.type=='weekly' and s.day=='tue' %}selected{% endif %}>Tue</option>
+                        <option value="wed" {% if s.type=='weekly' and s.day=='wed' %}selected{% endif %}>Wed</option>
+                        <option value="thu" {% if s.type=='weekly' and s.day=='thu' %}selected{% endif %}>Thu</option>
+                        <option value="fri" {% if s.type=='weekly' and s.day=='fri' %}selected{% endif %}>Fri</option>
+                        <option value="sat" {% if s.type=='weekly' and s.day=='sat' %}selected{% endif %}>Sat</option>
+                        <option value="sun" {% if s.type=='weekly' and s.day=='sun' %}selected{% endif %}>Sun</option>
+                    </select>
+                </span>
+                <span id="row-{{ s.id }}-day-monthly">
+                    <input type="date" name="day_{{ s.id }}" class="telegram-time-input date-input" {% if s.type=='monthly' and s.day %}value="{{ s.date_value }}"{% endif %}>
+                </span>
+            </td>
+            <td>
+                <input type="number" name="hour_{{ s.id }}" min="1" max="12" class="telegram-time-input" value="{{ s.hour }}">
+                <input type="number" name="minute_{{ s.id }}" min="0" max="59" class="telegram-time-input" value="{{ s.minute }}">
+                <select name="ampm_{{ s.id }}" class="ampm-select">
+                    <option value="am" {% if s.ampm=='AM' %}selected{% endif %}>AM</option>
+                    <option value="pm" {% if s.ampm=='PM' %}selected{% endif %}>PM</option>
+                </select>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</form>

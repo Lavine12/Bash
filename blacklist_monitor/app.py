@@ -137,7 +137,7 @@ def init_db():
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('RESEND_PERIOD', '0'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
-                  ('BACKUP_RETENTION_DAYS', '30'))
+                  ('BACKUP_RETENTION_DAYS', '0'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('BACKUP_KEEP_COUNT', '0'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
@@ -187,13 +187,10 @@ def index():
             t = job.next_run_time
             if gid not in group_next or t < group_next[gid]:
                 group_next[gid] = t
-    next_run_map = {}
-    for ip in ips:
-        t = group_next.get(ip[3])
-        next_run_map[ip[0]] = t.strftime('%H:%M') if t else ''
-    group_next_map = {gid: t.strftime('%H:%M') for gid, t in group_next.items() if t}
+    group_next_map = {gid: t.strftime('%d/%m/%Y %I:%M %p').lower()
+                       for gid, t in group_next.items() if t}
     return render_template('index.html', ips=ips, ip_count=ip_count,
-                           groups=groups, dnsbl_map=dnsbl_map, next_runs=next_run_map,
+                           groups=groups, dnsbl_map=dnsbl_map,
                            group_next=group_next_map)
 
 @app.route('/ips', methods=['GET', 'POST'])
@@ -847,7 +844,7 @@ def backups_view():
             schedule_backup_jobs()
         return redirect(url_for('backups_view'))
 
-    retention_days = int(get_setting('BACKUP_RETENTION_DAYS', '30'))
+    retention_days = int(get_setting('BACKUP_RETENTION_DAYS', '0'))
     retention_count = int(get_setting('BACKUP_KEEP_COUNT', '0'))
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()

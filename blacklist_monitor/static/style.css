@@ -163,3 +163,8 @@ button, input[type="submit"] {
 .log-settings {
     margin-bottom: 1em;
 }
+
+.stats {
+    font-family: monospace;
+    margin-bottom: 1em;
+}

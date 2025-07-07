@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 import requests
 from flask import Flask, render_template, request, redirect, url_for
@@ -28,6 +29,8 @@ class MemoryLogHandler(logging.Handler):
         msg = self.format(record)
         if "GET /log_feed" in msg:
             return
+        # remove ANSI color codes
+        msg = re.sub(r"\x1b\[[0-9;]*m", "", msg)
         log_history.append(msg)
 
 
@@ -1093,6 +1096,25 @@ def view_logs():
 @app.route('/log_feed')
 def log_feed():
     return '\n'.join(log_history)
+
+
+@app.route('/stats')
+def stats():
+    """Return simple system statistics for the dashboard."""
+    try:
+        import psutil
+        load = os.getloadavg()[0]
+        cpu = psutil.cpu_percent(interval=None)
+        mem = psutil.virtual_memory().percent
+        disk = psutil.disk_usage('/').percent
+    except Exception:
+        load = cpu = mem = disk = 0
+    return {
+        'load': round(load, 2),
+        'cpu': round(cpu, 2),
+        'mem': round(mem, 2),
+        'disk': round(disk, 2)
+    }
 if __name__ == '__main__':
     init_db()
     log_history = deque(maxlen=int(get_setting('LOG_HISTORY_SIZE', '200')))

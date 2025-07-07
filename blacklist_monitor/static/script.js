@@ -119,4 +119,19 @@ window.addEventListener('load', function() {
     fetchLogs();
     setInterval(fetchLogs, 2000);
   }
+
+  if (document.getElementById('system-stats')) {
+    function fetchStats() {
+      fetch('/stats')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var el = document.getElementById('system-stats');
+          if (el) {
+            el.textContent = 'load: ' + d.load + '  cpu: ' + d.cpu + '%  mem: ' + d.mem + '%  disk: ' + d.disk + '%';
+          }
+        });
+    }
+    fetchStats();
+    setInterval(fetchStats, 2000);
+  }
 });

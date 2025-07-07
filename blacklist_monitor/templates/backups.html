@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block content %}
-<h1>Backups</h1>
+<h1>Check Result Backups</h1>
 <p>Recent status:
 {% if last_backup %}
     {{ last_backup[1] }} - {{ last_backup[2] }}{% if last_backup[3] %} ({{ last_backup[3] }}){% endif %}

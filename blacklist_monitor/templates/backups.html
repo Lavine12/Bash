@@ -56,20 +56,60 @@
     {% if edit_schedule %}<a href="{{ url_for('backups_view') }}">Cancel</a>{% endif %}
 </form>
 <form method="post" id="schedule-delete-form">
-    <input type="hidden" name="action" value="schedule_delete">
     <div class="action-buttons">
-        <button type="submit">Delete Selected</button>
+        <button type="submit" name="action" value="schedule_update">Update Selected</button>
+        <button type="submit" name="action" value="schedule_delete">Delete Selected</button>
     </div>
-    <table>
-        <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>Group</th><th>Type</th><th>Day</th><th>Time</th><th>Edit</th></tr>
+    <table class="schedule-table">
+        <tr>
+            <th><input type="checkbox" onclick="toggleAll(this)"></th>
+            <th>Group</th>
+            <th>Type</th>
+            <th>Day</th>
+            <th>Time</th>
+        </tr>
         {% for s in schedules %}
         <tr>
-            <td><input type="checkbox" name="schedule_id" value="{{ s[0] }}"></td>
-            <td>{{ s[1] or 'All' }}</td>
-            <td>{{ s[2] }}</td>
-            <td>{{ s[3] }}</td>
-            <td>{{ s[4] }}</td>
-            <td><a href="{{ url_for('backups_view', edit=s[0]) }}">Edit</a></td>
+            <td><input type="checkbox" name="schedule_id" value="{{ s.id }}"></td>
+            <td>
+                <select name="group_id_{{ s.id }}" class="wide-select">
+                    <option value="">All Groups</option>
+                    {% for g in groups %}
+                    <option value="{{ g[0] }}" {% if s.group_id==g[0] %}selected{% endif %}>{{ g[1] }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select name="type_{{ s.id }}" id="row-{{ s.id }}-type" class="wide-select schedule-type-row" data-row-id="{{ s.id }}" onchange="updateRowScheduleInputs('{{ s.id }}')">
+                    <option value="daily" {% if s.type=='daily' %}selected{% endif %}>Daily</option>
+                    <option value="weekly" {% if s.type=='weekly' %}selected{% endif %}>Weekly</option>
+                    <option value="monthly" {% if s.type=='monthly' %}selected{% endif %}>Monthly</option>
+                </select>
+            </td>
+            <td>
+                <span id="row-{{ s.id }}-day-weekly">
+                    <select name="day_{{ s.id }}" class="wide-select">
+                        <option value="mon" {% if s.type=='weekly' and s.day=='mon' %}selected{% endif %}>Mon</option>
+                        <option value="tue" {% if s.type=='weekly' and s.day=='tue' %}selected{% endif %}>Tue</option>
+                        <option value="wed" {% if s.type=='weekly' and s.day=='wed' %}selected{% endif %}>Wed</option>
+                        <option value="thu" {% if s.type=='weekly' and s.day=='thu' %}selected{% endif %}>Thu</option>
+                        <option value="fri" {% if s.type=='weekly' and s.day=='fri' %}selected{% endif %}>Fri</option>
+                        <option value="sat" {% if s.type=='weekly' and s.day=='sat' %}selected{% endif %}>Sat</option>
+                        <option value="sun" {% if s.type=='weekly' and s.day=='sun' %}selected{% endif %}>Sun</option>
+                    </select>
+                </span>
+                <span id="row-{{ s.id }}-day-monthly">
+                    <input type="date" name="day_{{ s.id }}" class="telegram-time-input" {% if s.type=='monthly' and s.day %}value="{{ '2000-01-' + '%02d'|format(s.day|int) }}"{% endif %}>
+                </span>
+            </td>
+            <td>
+                <input type="number" name="hour_{{ s.id }}" min="1" max="12" class="telegram-time-input" value="{{ s.hour }}">
+                <input type="number" name="minute_{{ s.id }}" min="0" max="59" class="telegram-time-input" value="{{ s.minute }}">
+                <select name="ampm_{{ s.id }}" class="telegram-input">
+                    <option value="am" {% if s.ampm=='AM' %}selected{% endif %}>AM</option>
+                    <option value="pm" {% if s.ampm=='PM' %}selected{% endif %}>PM</option>
+                </select>
+            </td>
         </tr>
         {% endfor %}
     </table>

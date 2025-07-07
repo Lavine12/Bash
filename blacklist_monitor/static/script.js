@@ -27,11 +27,11 @@ function toggleAll(src) {
 
 window.addEventListener('load', restoreCollapse);
 
-function updateScheduleInputs() {
-  const type = document.getElementById('schedule-type');
+function handleScheduleInputs(typeId, weeklyId, monthlyId) {
+  const type = document.getElementById(typeId);
   if (!type) return;
-  const weekly = document.getElementById('day-weekly');
-  const monthly = document.getElementById('day-monthly');
+  const weekly = document.getElementById(weeklyId);
+  const monthly = document.getElementById(monthlyId);
   if (weekly) weekly.style.display = 'none';
   if (monthly) monthly.style.display = 'none';
   if (type.value === 'weekly') {
@@ -48,4 +48,18 @@ function updateScheduleInputs() {
   }
 }
 
-window.addEventListener('load', updateScheduleInputs);
+function updateScheduleInputs() {
+  handleScheduleInputs('schedule-type', 'day-weekly', 'day-monthly');
+}
+
+function updateRowScheduleInputs(id) {
+  handleScheduleInputs('row-' + id + '-type', 'row-' + id + '-day-weekly', 'row-' + id + '-day-monthly');
+}
+
+window.addEventListener('load', function() {
+  updateScheduleInputs();
+  document.querySelectorAll('.schedule-type-row').forEach(function(el) {
+    const id = el.dataset.rowId;
+    updateRowScheduleInputs(id);
+  });
+});

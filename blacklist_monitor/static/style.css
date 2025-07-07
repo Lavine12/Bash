@@ -95,3 +95,8 @@ button, input[type="submit"] {
 #day-monthly {
     display: none;
 }
+
+.schedule-table {
+    border-collapse: separate;
+    border-spacing: 0 0.5em;
+}

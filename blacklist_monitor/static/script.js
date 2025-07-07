@@ -104,8 +104,15 @@ window.addEventListener('load', function() {
       fetch('/log_feed').then(function(r) { return r.text(); }).then(function(t) {
         const pre = document.getElementById('log-output');
         if (pre) {
+          const oldScroll = pre.scrollTop;
+          const oldHeight = pre.scrollHeight;
+          const atBottom = oldScroll + pre.clientHeight >= oldHeight - 20;
           pre.textContent = t;
-          pre.scrollTop = pre.scrollHeight;
+          if (atBottom) {
+            pre.scrollTop = pre.scrollHeight;
+          } else {
+            pre.scrollTop = oldScroll;
+          }
         }
       });
     }

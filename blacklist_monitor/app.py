@@ -25,7 +25,10 @@ log_history = deque(maxlen=200)
 class MemoryLogHandler(logging.Handler):
     """Collect log records in memory."""
     def emit(self, record):
-        log_history.append(self.format(record))
+        msg = self.format(record)
+        if "GET /log_feed" in msg:
+            return
+        log_history.append(msg)
 
 
 log_handler = MemoryLogHandler()

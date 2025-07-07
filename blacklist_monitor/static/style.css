@@ -84,7 +84,11 @@ button, input[type="submit"] {
 
 /* Add spacing between the action buttons and the table */
 .action-buttons {
-    margin-bottom: 1.5em;
+    margin: 1em 0 2em 0;
+}
+
+#schedule-delete-form {
+    margin-top: 1.5em;
 }
 
 #day-weekly,

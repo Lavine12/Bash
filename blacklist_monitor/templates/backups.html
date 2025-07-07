@@ -15,49 +15,53 @@
 <h2>Schedule</h2>
 <form method="post" id="schedule-form">
     <input type="hidden" name="action" value="schedule_add">
+    {% if edit_schedule %}
+    <input type="hidden" name="schedule_id" value="{{ edit_schedule.id }}">
+    {% endif %}
     <label>Group:</label>
     <select name="group_id" class="wide-select">
         <option value="">All Groups</option>
         {% for g in groups %}
-        <option value="{{ g[0] }}">{{ g[1] }}</option>
+        <option value="{{ g[0] }}" {% if edit_schedule and g[0]==edit_schedule.group_id %}selected{% endif %}>{{ g[1] }}</option>
         {% endfor %}
     </select>
     <label>Type:</label>
     <select name="type" id="schedule-type" class="wide-select" onchange="updateScheduleInputs()">
-        <option value="daily">Daily</option>
-        <option value="weekly">Weekly</option>
-        <option value="monthly">Monthly</option>
+        <option value="daily" {% if edit_schedule and edit_schedule.type=='daily' %}selected{% endif %}>Daily</option>
+        <option value="weekly" {% if edit_schedule and edit_schedule.type=='weekly' %}selected{% endif %}>Weekly</option>
+        <option value="monthly" {% if edit_schedule and edit_schedule.type=='monthly' %}selected{% endif %}>Monthly</option>
     </select>
     <span id="day-weekly">
         <select name="day" class="wide-select">
-            <option value="mon">Mon</option>
-            <option value="tue">Tue</option>
-            <option value="wed">Wed</option>
-            <option value="thu">Thu</option>
-            <option value="fri">Fri</option>
-            <option value="sat">Sat</option>
-            <option value="sun">Sun</option>
+            <option value="mon" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='mon' %}selected{% endif %}>Mon</option>
+            <option value="tue" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='tue' %}selected{% endif %}>Tue</option>
+            <option value="wed" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='wed' %}selected{% endif %}>Wed</option>
+            <option value="thu" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='thu' %}selected{% endif %}>Thu</option>
+            <option value="fri" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='fri' %}selected{% endif %}>Fri</option>
+            <option value="sat" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='sat' %}selected{% endif %}>Sat</option>
+            <option value="sun" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='sun' %}selected{% endif %}>Sun</option>
         </select>
     </span>
     <span id="day-monthly">
-        <input type="number" name="day" min="1" max="31" class="telegram-time-input">
+        <input type="date" name="day" class="telegram-time-input" {% if edit_schedule and edit_schedule.type=='monthly' %}value="{{ edit_schedule.date_value }}"{% endif %}>
     </span>
     <label>Time:</label>
-    <input type="number" name="hour" min="1" max="12" class="telegram-time-input">
-    <input type="number" name="minute" min="0" max="59" class="telegram-time-input">
+    <input type="number" name="hour" min="1" max="12" class="telegram-time-input" {% if edit_schedule %}value="{{ edit_schedule.hour }}"{% endif %}>
+    <input type="number" name="minute" min="0" max="59" class="telegram-time-input" {% if edit_schedule %}value="{{ edit_schedule.minute }}"{% endif %}>
     <select name="ampm" class="telegram-input">
-        <option value="am">AM</option>
-        <option value="pm">PM</option>
+        <option value="am" {% if edit_schedule and edit_schedule.ampm=='am' %}selected{% endif %}>AM</option>
+        <option value="pm" {% if edit_schedule and edit_schedule.ampm=='pm' %}selected{% endif %}>PM</option>
     </select>
-    <button type="submit">Add</button>
+    <button type="submit">{% if edit_schedule %}Update{% else %}Add{% endif %}</button>
+    {% if edit_schedule %}<a href="{{ url_for('backups_view') }}">Cancel</a>{% endif %}
 </form>
-<form method="post">
+<form method="post" id="schedule-delete-form">
     <input type="hidden" name="action" value="schedule_delete">
     <div class="action-buttons">
         <button type="submit">Delete Selected</button>
     </div>
     <table>
-        <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>Group</th><th>Type</th><th>Day</th><th>Time</th></tr>
+        <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>Group</th><th>Type</th><th>Day</th><th>Time</th><th>Edit</th></tr>
         {% for s in schedules %}
         <tr>
             <td><input type="checkbox" name="schedule_id" value="{{ s[0] }}"></td>
@@ -65,6 +69,7 @@
             <td>{{ s[2] }}</td>
             <td>{{ s[3] }}</td>
             <td>{{ s[4] }}</td>
+            <td><a href="{{ url_for('backups_view', edit=s[0]) }}">Edit</a></td>
         </tr>
         {% endfor %}
     </table>

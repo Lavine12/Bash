@@ -92,6 +92,19 @@ def init_db():
             minute INTEGER,
             date_full TEXT
         )''')
+        c.execute('''CREATE TABLE IF NOT EXISTS check_schedules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER,
+            type TEXT,
+            day TEXT,
+            hour INTEGER,
+            minute INTEGER,
+            date_full TEXT
+        )''')
+        try:
+            c.execute('ALTER TABLE check_schedules ADD COLUMN date_full TEXT')
+        except sqlite3.OperationalError:
+            pass
         try:
             c.execute('ALTER TABLE backup_schedules ADD COLUMN date_full TEXT')
         except sqlite3.OperationalError:
@@ -145,6 +158,7 @@ def init_db():
 
 
 @app.route('/')
+
 def index():
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
@@ -165,13 +179,20 @@ def index():
                                     WHERE check_results.ip_id=? AND check_results.checked_at=? AND check_results.listed=1''',
                                  (ip[0], ip[2])).fetchall()
                 dnsbl_map[ip[0]] = [r[0] for r in rows]
-    next_run = None
-    job = sched.get_job('blacklist_check')
-    if job:
-        next_run = job.next_run_time
+        schedules = c.execute('SELECT id, group_id FROM check_schedules').fetchall()
+    group_next = {}
+    for sid, gid in schedules:
+        job = sched.get_job(f'check_job_{sid}')
+        if job and job.next_run_time:
+            t = job.next_run_time
+            if gid not in group_next or t < group_next[gid]:
+                group_next[gid] = t
+    next_run_map = {}
+    for ip in ips:
+        t = group_next.get(ip[3])
+        next_run_map[ip[0]] = t.strftime('%H:%M') if t else ''
     return render_template('index.html', ips=ips, ip_count=ip_count,
-                           next_run=next_run, groups=groups, dnsbl_map=dnsbl_map)
-
+                           groups=groups, dnsbl_map=dnsbl_map, next_runs=next_run_map)
 
 @app.route('/ips', methods=['GET', 'POST'])
 def manage_ips():
@@ -401,10 +422,13 @@ def include_selected():
     return redirect(url_for('index'))
 
 
-def check_blacklists():
+def check_blacklists(group_id=None):
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
-        ips = c.execute('SELECT id FROM ip_addresses WHERE excluded=0').fetchall()
+        if group_id is None:
+            ips = c.execute('SELECT id FROM ip_addresses WHERE excluded=0').fetchall()
+        else:
+            ips = c.execute('SELECT id FROM ip_addresses WHERE excluded=0 AND group_id=?', (group_id,)).fetchall()
         for (ip_id,) in ips:
             check_ip(ip_id)
         conn.commit()
@@ -608,31 +632,126 @@ def telegram_settings():
 
 @app.route('/schedule', methods=['GET', 'POST'])
 def schedule_view():
-    global CHECK_INTERVAL_MINUTES
-    if request.method == 'POST':
-        try:
-            hours = int(request.form.get('hours', 0))
-            minutes = int(request.form.get('minutes', 0))
-            interval = hours * 60 + minutes
-            CHECK_INTERVAL_MINUTES = interval
-            job = sched.get_job('blacklist_check')
-            if interval <= 0:
-                if job:
-                    sched.remove_job('blacklist_check')
+    action = request.form.get('action', '') if request.method == 'POST' else ''
+    if action == 'schedule_add':
+        stype = request.form.get('type', '')
+        day = request.form.get('day', '')
+        date_full = day if stype == 'monthly' and day else None
+        hour = int(request.form.get('hour', '0') or 0)
+        minute = int(request.form.get('minute', '0') or 0)
+        ampm = request.form.get('ampm', 'am')
+        group_id = request.form.get('group_id') or None
+        sched_id = request.form.get('schedule_id')
+        if ampm == 'pm' and hour < 12:
+            hour += 12
+        if ampm == 'am' and hour == 12:
+            hour = 0
+        if stype == 'monthly' and day:
+            try:
+                day = str(int(day.split('-')[-1]))
+            except Exception:
+                day = ''
+        with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+            c = conn.cursor()
+            if sched_id:
+                c.execute('''UPDATE check_schedules SET group_id=?, type=?, day=?, hour=?, minute=?, date_full=? WHERE id=?''',
+                          (group_id, stype, day, hour, minute, date_full, sched_id))
             else:
-                if job:
-                    sched.reschedule_job('blacklist_check', trigger='interval', minutes=interval)
-                else:
-                    sched.add_job(scheduled_check, 'interval', minutes=interval, id='blacklist_check')
-        except ValueError:
-            pass
-    job = sched.get_job('blacklist_check')
-    next_run = job.next_run_time if job else None
-    h = CHECK_INTERVAL_MINUTES // 60
-    m = CHECK_INTERVAL_MINUTES % 60
-    return render_template('schedule.html', hours=h, minutes=m, next_run=next_run)
+                c.execute('INSERT INTO check_schedules (group_id, type, day, hour, minute, date_full) VALUES (?, ?, ?, ?, ?, ?)',
+                          (group_id, stype, day, hour, minute, date_full))
+            conn.commit()
+        schedule_check_jobs()
+        return redirect(url_for('schedule_view'))
+    elif action == 'schedule_update':
+        ids = request.form.getlist('schedule_id')
+        with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+            c = conn.cursor()
+            for sid in ids:
+                stype = request.form.get(f'type_{sid}', '')
+                day = request.form.get(f'day_{sid}', '')
+                date_full = day if stype == 'monthly' and day else None
+                hour = int(request.form.get(f'hour_{sid}', '0') or 0)
+                minute = int(request.form.get(f'minute_{sid}', '0') or 0)
+                ampm = request.form.get(f'ampm_{sid}', 'am')
+                group_id = request.form.get(f'group_id_{sid}') or None
+                if ampm == 'pm' and hour < 12:
+                    hour += 12
+                if ampm == 'am' and hour == 12:
+                    hour = 0
+                if stype == 'monthly' and day:
+                    try:
+                        day = str(int(day.split('-')[-1]))
+                    except Exception:
+                        day = ''
+                c.execute('''UPDATE check_schedules SET group_id=?, type=?, day=?, hour=?, minute=?, date_full=? WHERE id=?''',
+                          (group_id, stype, day, hour, minute, date_full, sid))
+            conn.commit()
+        schedule_check_jobs()
+        return redirect(url_for('schedule_view'))
+    elif action == 'schedule_delete':
+        ids = request.form.getlist('schedule_id')
+        with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+            c = conn.cursor()
+            for sid in ids:
+                c.execute('DELETE FROM check_schedules WHERE id=?', (sid,))
+            conn.commit()
+        schedule_check_jobs()
+        return redirect(url_for('schedule_view'))
 
-
+    edit_schedule = None
+    if request.args.get('edit'):
+        sid = request.args.get('edit')
+        with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+            c = conn.cursor()
+            row = c.execute('SELECT id, group_id, type, day, hour, minute, date_full FROM check_schedules WHERE id=?', (sid,)).fetchone()
+        if row:
+            rid, g_id, typ, d, h, m, dfull = row
+            am = 'AM'
+            hour12 = h
+            if hour12 >= 12:
+                am = 'PM'
+                if hour12 > 12:
+                    hour12 -= 12
+            if hour12 == 0:
+                hour12 = 12
+            date_val = ''
+            if typ == 'monthly':
+                if dfull:
+                    date_val = dfull
+                elif d:
+                    date_val = f"2000-01-{int(d):02d}"
+            edit_schedule = {
+                'id': rid,
+                'group_id': g_id,
+                'type': typ,
+                'day': d,
+                'hour': hour12,
+                'minute': m,
+                'ampm': am,
+                'date_value': date_val,
+            }
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+        c = conn.cursor()
+        schedules = c.execute('''SELECT check_schedules.id, check_schedules.group_id, ip_groups.name, check_schedules.type, check_schedules.day, check_schedules.hour, check_schedules.minute, check_schedules.date_full FROM check_schedules LEFT JOIN ip_groups ON ip_groups.id=check_schedules.group_id''').fetchall()
+        groups = c.execute('SELECT id, name FROM ip_groups').fetchall()
+    display_schedules = []
+    for sid, gid, gname, stype, day, hour, minute, date_full in schedules:
+        ampm = 'AM'
+        h = hour
+        if h >= 12:
+            ampm = 'PM'
+            if h > 12:
+                h -= 12
+        if h == 0:
+            h = 12
+        date_val = ''
+        if stype == 'monthly':
+            if date_full:
+                date_val = date_full
+            elif day:
+                date_val = f"2000-01-{int(day):02d}"
+        display_schedules.append({'id': sid, 'group_id': gid, 'group_name': gname, 'type': stype, 'day': day, 'hour': h, 'minute': minute, 'ampm': ampm, 'date_value': date_val})
+    return render_template('schedule.html', schedules=display_schedules, groups=groups, edit_schedule=edit_schedule)
 @app.route('/backups', methods=['GET', 'POST'])
 def backups_view():
     if request.method == 'POST':
@@ -838,9 +957,8 @@ def backups_view():
                            view_id=view_id)
 
 
-def scheduled_check():
-    if CHECK_INTERVAL_MINUTES > 0:
-        check_blacklists()
+def scheduled_check(group_id=None):
+    check_blacklists(group_id)
 
 
 def cleanup_old_backups():
@@ -920,11 +1038,28 @@ def schedule_backup_jobs():
         elif stype == 'monthly':
             sched.add_job(create_backup, 'cron', day=day or '1', hour=hour, minute=minute, id=job_id)
 
+def schedule_check_jobs():
+    for job in sched.get_jobs():
+        if job.id.startswith("check_job_"):
+            sched.remove_job(job.id)
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+        c = conn.cursor()
+        rows = c.execute("SELECT id, group_id, type, day, hour, minute FROM check_schedules").fetchall()
+    for sid, gid, stype, day, hour, minute in rows:
+        job_id = f"check_job_{sid}"
+        kwargs = {"group_id": gid}
+        if stype == "daily":
+            sched.add_job(scheduled_check, "cron", hour=hour, minute=minute, id=job_id, kwargs=kwargs)
+        elif stype == "weekly":
+            sched.add_job(scheduled_check, "cron", day_of_week=day or "mon", hour=hour, minute=minute, id=job_id, kwargs=kwargs)
+        elif stype == "monthly":
+            sched.add_job(scheduled_check, "cron", day=day or "1", hour=hour, minute=minute, id=job_id, kwargs=kwargs)
+
+
 
 if __name__ == '__main__':
     init_db()
-    if CHECK_INTERVAL_MINUTES > 0:
-        sched.add_job(scheduled_check, 'interval', minutes=CHECK_INTERVAL_MINUTES, id='blacklist_check')
+    schedule_check_jobs()
     schedule_backup_jobs()
     sched.start()
     app.run(host='0.0.0.0', port=5000)

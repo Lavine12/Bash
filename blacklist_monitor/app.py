@@ -89,8 +89,13 @@ def init_db():
             type TEXT,
             day TEXT,
             hour INTEGER,
-            minute INTEGER
+            minute INTEGER,
+            date_full TEXT
         )''')
+        try:
+            c.execute('ALTER TABLE backup_schedules ADD COLUMN date_full TEXT')
+        except sqlite3.OperationalError:
+            pass
         # ensure upgrade columns exist
         try:
             c.execute('ALTER TABLE ip_addresses ADD COLUMN group_id INTEGER')
@@ -659,6 +664,7 @@ def backups_view():
         elif action == 'schedule_add':
             stype = request.form.get('type', '')
             day = request.form.get('day', '')
+            date_full = day if stype == 'monthly' and day else None
             hour = int(request.form.get('hour', '0') or 0)
             minute = int(request.form.get('minute', '0') or 0)
             ampm = request.form.get('ampm', 'am')
@@ -676,12 +682,12 @@ def backups_view():
             with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
                 c = conn.cursor()
                 if sched_id:
-                    c.execute('''UPDATE backup_schedules SET group_id=?, type=?, day=?, hour=?, minute=?
+                    c.execute('''UPDATE backup_schedules SET group_id=?, type=?, day=?, hour=?, minute=?, date_full=?
                                  WHERE id=?''',
-                              (group_id, stype, day, hour, minute, sched_id))
+                              (group_id, stype, day, hour, minute, date_full, sched_id))
                 else:
-                    c.execute('INSERT INTO backup_schedules (group_id, type, day, hour, minute) VALUES (?, ?, ?, ?, ?)',
-                              (group_id, stype, day, hour, minute))
+                    c.execute('INSERT INTO backup_schedules (group_id, type, day, hour, minute, date_full) VALUES (?, ?, ?, ?, ?, ?)',
+                              (group_id, stype, day, hour, minute, date_full))
                 conn.commit()
             schedule_backup_jobs()
         elif action == 'schedule_update':
@@ -691,6 +697,7 @@ def backups_view():
                 for sid in ids:
                     stype = request.form.get(f'type_{sid}', '')
                     day = request.form.get(f'day_{sid}', '')
+                    date_full = day if stype == 'monthly' and day else None
                     hour = int(request.form.get(f'hour_{sid}', '0') or 0)
                     minute = int(request.form.get(f'minute_{sid}', '0') or 0)
                     ampm = request.form.get(f'ampm_{sid}', 'am')
@@ -704,9 +711,9 @@ def backups_view():
                             day = str(int(day.split('-')[-1]))
                         except Exception:
                             day = ''
-                    c.execute('''UPDATE backup_schedules SET group_id=?, type=?, day=?, hour=?, minute=?
+                    c.execute('''UPDATE backup_schedules SET group_id=?, type=?, day=?, hour=?, minute=?, date_full=?
                                  WHERE id=?''',
-                              (group_id, stype, day, hour, minute, sid))
+                              (group_id, stype, day, hour, minute, date_full, sid))
                 conn.commit()
             schedule_backup_jobs()
         elif action == 'schedule_delete':
@@ -725,12 +732,13 @@ def backups_view():
         c = conn.cursor()
         backups = c.execute('SELECT id, created_at, status, error FROM backups ORDER BY created_at DESC').fetchall()
         schedules = c.execute('''SELECT backup_schedules.id, backup_schedules.group_id, ip_groups.name, backup_schedules.type,
-                                       backup_schedules.day, backup_schedules.hour, backup_schedules.minute
+                                       backup_schedules.day, backup_schedules.hour, backup_schedules.minute,
+                                       backup_schedules.date_full
                                 FROM backup_schedules LEFT JOIN ip_groups ON ip_groups.id=backup_schedules.group_id''').fetchall()
         groups = c.execute('SELECT id, name FROM ip_groups').fetchall()
     last_backup = backups[0] if backups else None
     display_schedules = []
-    for sid, gid, gname, stype, day, hour, minute in schedules:
+    for sid, gid, gname, stype, day, hour, minute, date_full in schedules:
         ampm = 'AM'
         h = hour
         if h >= 12:
@@ -740,8 +748,11 @@ def backups_view():
         if h == 0:
             h = 12
         date_val = ''
-        if stype == 'monthly' and day:
-            date_val = f"2000-01-{int(day):02d}"
+        if stype == 'monthly':
+            if date_full:
+                date_val = date_full
+            elif day:
+                date_val = f"2000-01-{int(day):02d}"
         display_schedules.append({'id': sid,
                                  'group_id': gid,
                                  'group_name': gname,
@@ -757,9 +768,9 @@ def backups_view():
         sid = request.args.get('edit')
         with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
             c = conn.cursor()
-            row = c.execute('SELECT id, group_id, type, day, hour, minute FROM backup_schedules WHERE id=?', (sid,)).fetchone()
+            row = c.execute('SELECT id, group_id, type, day, hour, minute, date_full FROM backup_schedules WHERE id=?', (sid,)).fetchone()
         if row:
-            rid, g_id, typ, d, h, m = row
+            rid, g_id, typ, d, h, m, dfull = row
             am = 'AM'
             hour12 = h
             if hour12 >= 12:
@@ -769,8 +780,11 @@ def backups_view():
             if hour12 == 0:
                 hour12 = 12
             date_val = ''
-            if typ == 'monthly' and d:
-                date_val = f"2000-01-{int(d):02d}"
+            if typ == 'monthly':
+                if dfull:
+                    date_val = dfull
+                elif d:
+                    date_val = f"2000-01-{int(d):02d}"
             edit_schedule = {
                 'id': rid,
                 'group_id': g_id,

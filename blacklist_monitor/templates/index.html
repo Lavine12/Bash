@@ -10,14 +10,13 @@
         <h3 onclick="toggle('g{{ g[0] }}')" class="group-header">{{ g[1] }}{% if group_next.get(g[0]) %} - {{ group_next[g[0]] }}{% endif %}</h3>
         <div id="g{{ g[0] }}" data-collapse>
         <table>
-            <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Last Checked</th><th>Next Run</th><th>Status</th><th>DNSBL</th><th>Check Excluded</th></tr>
+            <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Last Checked</th><th>Status</th><th>DNSBL</th><th>Check Excluded</th></tr>
             {% for ip in ips %}
                 {% if ip[3] == g[0] %}
                 <tr class="{% if ip[4] %}row-excluded{% elif ip[5] == 1 %}row-listed{% elif ip[5] == 0 %}row-clean{% else %}row-unknown{% endif %}">
                     <td><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
                     <td>{{ ip[1] }}</td>
                     <td>{{ ip[2] or 'never' }}</td>
-                    <td>{{ next_runs[ip[0]] }}</td>
                     <td class="{% if ip[5] == 1 %}status-listed{% elif ip[5] == 0 %}status-clean{% endif %}">{% if ip[5] == 1 %}listed{% elif ip[5] == 0 %}clean{% else %}-{% endif %}</td>
                     <td>{{ dnsbl_map[ip[0]]|join(', ') }}</td>
                     <td>{{ 'yes' if ip[4] else 'no' }}</td>
@@ -33,13 +32,12 @@
         <h3 onclick="toggle('g0')" class="group-header">Ungrouped{% if group_next.get(None) %} - {{ group_next[None] }}{% endif %}</h3>
         <div id="g0" data-collapse>
         <table>
-            <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Last Checked</th><th>Next Run</th><th>Status</th><th>DNSBL</th><th>Check Excluded</th></tr>
+            <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Last Checked</th><th>Status</th><th>DNSBL</th><th>Check Excluded</th></tr>
             {% for ip in ungroup %}
             <tr class="{% if ip[4] %}row-excluded{% elif ip[5] == 1 %}row-listed{% elif ip[5] == 0 %}row-clean{% else %}row-unknown{% endif %}">
                 <td><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
                 <td>{{ ip[1] }}</td>
                 <td>{{ ip[2] or 'never' }}</td>
-                    <td>{{ next_runs[ip[0]] }}</td>
                 <td class="{% if ip[5] == 1 %}status-listed{% elif ip[5] == 0 %}status-clean{% endif %}">{% if ip[5] == 1 %}listed{% elif ip[5] == 0 %}clean{% else %}-{% endif %}</td>
                 <td>{{ dnsbl_map[ip[0]]|join(', ') }}</td>
                 <td>{{ 'yes' if ip[4] else 'no' }}</td>

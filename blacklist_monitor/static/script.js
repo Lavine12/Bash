@@ -98,4 +98,18 @@ window.addEventListener('load', function() {
       localStorage.setItem(key, this.value);
     });
   });
+
+  if (document.getElementById('log-output')) {
+    function fetchLogs() {
+      fetch('/log_feed').then(function(r) { return r.text(); }).then(function(t) {
+        const pre = document.getElementById('log-output');
+        if (pre) {
+          pre.textContent = t;
+          pre.scrollTop = pre.scrollHeight;
+        }
+      });
+    }
+    fetchLogs();
+    setInterval(fetchLogs, 2000);
+  }
 });

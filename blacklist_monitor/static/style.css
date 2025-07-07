@@ -100,3 +100,16 @@ button, input[type="submit"] {
     border-collapse: separate;
     border-spacing: 0 0.5em;
 }
+
+/* shorter controls for schedule page */
+.short-select {
+    width: 150px;
+    padding: 0.4em;
+    margin: 0.2em 0;
+}
+
+.ampm-select {
+    width: 80px;
+    padding: 0.4em;
+    margin: 0.2em 0;
+}

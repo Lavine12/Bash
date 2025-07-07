@@ -191,8 +191,10 @@ def index():
     for ip in ips:
         t = group_next.get(ip[3])
         next_run_map[ip[0]] = t.strftime('%H:%M') if t else ''
+    group_next_map = {gid: t.strftime('%H:%M') for gid, t in group_next.items() if t}
     return render_template('index.html', ips=ips, ip_count=ip_count,
-                           groups=groups, dnsbl_map=dnsbl_map, next_runs=next_run_map)
+                           groups=groups, dnsbl_map=dnsbl_map, next_runs=next_run_map,
+                           group_next=group_next_map)
 
 @app.route('/ips', methods=['GET', 'POST'])
 def manage_ips():

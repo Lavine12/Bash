@@ -631,7 +631,13 @@ def backups_view():
     if request.method == 'POST':
         action = request.form.get('action', '')
         if action == 'create':
-            create_backup()
+            bid = create_backup()
+            return redirect(url_for('backups_view', view=bid or ''))
+        elif action == 'view':
+            ids = request.form.getlist('backup_id')
+            if ids:
+                return redirect(url_for('backups_view', view=ids[0]))
+            return redirect(url_for('backups_view'))
         elif action == 'delete':
             ids = request.form.getlist('backup_id')
             with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
@@ -765,7 +771,10 @@ def backups_view():
                 'date_value': date_val,
             }
     results = None
-    if request.args:
+    view_id = request.args.get('view')
+    if view_id:
+        results = get_backup_results(view_id)
+    elif request.args:
         q = '''SELECT b.created_at, ip_addresses.ip, dnsbls.domain, r.listed, r.checked_at
                 FROM backup_check_results r
                 JOIN backups b ON b.id=r.backup_id
@@ -820,6 +829,18 @@ def cleanup_old_backups():
             c.execute('DELETE FROM backups WHERE id=?', (bid,))
         conn.commit()
 
+def get_backup_results(bid):
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+        c = conn.cursor()
+        return c.execute('''SELECT b.created_at, ip_addresses.ip, dnsbls.domain,
+                                   r.listed, r.checked_at
+                            FROM backup_check_results r
+                            JOIN backups b ON b.id=r.backup_id
+                            JOIN ip_addresses ON ip_addresses.id=r.ip_id
+                            JOIN dnsbls ON dnsbls.id=r.dnsbl_id
+                            WHERE b.id=?
+                            ORDER BY r.checked_at DESC''', (bid,)).fetchall()
+
 
 def create_backup():
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -843,6 +864,7 @@ def create_backup():
                 c.execute('UPDATE backups SET status=?, error=? WHERE id=?', ('failed', str(e), bid))
             conn.commit()
     cleanup_old_backups()
+    return bid
 
 
 def schedule_backup_jobs():

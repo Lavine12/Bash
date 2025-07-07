@@ -46,7 +46,11 @@ function updateScheduleDisplay(prefix) {
     const show = weekly && weekly.checked;
     weeklyWrap.style.display = show ? '' : 'none';
     const sel = weeklyWrap.querySelector('select');
-    if (sel) sel.disabled = !show;
+    if (sel) {
+      sel.disabled = !show;
+      if (show) sel.classList.add('active');
+      else sel.classList.remove('active');
+    }
   }
 
   if (monthlyWrap) {
@@ -83,5 +87,15 @@ window.addEventListener('load', function() {
   document.querySelectorAll('.schedule-row').forEach(function(row) {
     const id = row.dataset.rowId;
     updateScheduleDisplay('row-' + id);
+  });
+  document.querySelectorAll('[id$="-day-monthly"] input').forEach(function(inp) {
+    const key = 'cache_' + inp.name;
+    const saved = localStorage.getItem(key);
+    if (!inp.value && saved) {
+      inp.value = saved;
+    }
+    inp.addEventListener('change', function() {
+      localStorage.setItem(key, this.value);
+    });
   });
 });

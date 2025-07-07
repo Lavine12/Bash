@@ -116,6 +116,8 @@
     <input type="hidden" name="action" value="retention">
     <label>Keep days (0 to disable cleanup):</label>
     <input type="number" name="days" value="{{ retention_days }}" min="0" class="telegram-input">
+    <label>Keep count (0 to disable limit):</label>
+    <input type="number" name="count" value="{{ retention_count }}" min="0" class="telegram-input">
     <input type="submit" value="Save">
 </form>
 <h2>Existing Backups</h2>
@@ -137,8 +139,9 @@
         {% endfor %}
     </table>
 </form>
+<div id="search-section">
 <h2>Search</h2>
-<form method="get">
+<form method="get" class="search-form">
     <label>From:</label>
     <input type="date" name="start" value="{{ request.args.start }}" class="telegram-input">
     <label>To:</label>
@@ -156,6 +159,7 @@
     <input type="submit" value="Search">
 </form>
 {% if results %}
+{% if view_id %}<h3>Backup Results</h3>{% endif %}
 <table>
 <tr><th>Date</th><th>IP</th><th>DNSBL</th><th>Listed</th><th>Checked At</th></tr>
 {% for r in results %}
@@ -169,4 +173,5 @@
 {% endfor %}
 </table>
 {% endif %}
+</div>
 {% endblock %}

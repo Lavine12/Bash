@@ -26,3 +26,26 @@ function toggleAll(src) {
 }
 
 window.addEventListener('load', restoreCollapse);
+
+function updateScheduleInputs() {
+  const type = document.getElementById('schedule-type');
+  if (!type) return;
+  const weekly = document.getElementById('day-weekly');
+  const monthly = document.getElementById('day-monthly');
+  if (weekly) weekly.style.display = 'none';
+  if (monthly) monthly.style.display = 'none';
+  if (type.value === 'weekly') {
+    if (weekly) weekly.style.display = '';
+    if (weekly) weekly.querySelector('select').disabled = false;
+    if (monthly) monthly.querySelector('input').disabled = true;
+  } else if (type.value === 'monthly') {
+    if (monthly) monthly.style.display = '';
+    if (monthly) monthly.querySelector('input').disabled = false;
+    if (weekly) weekly.querySelector('select').disabled = true;
+  } else {
+    if (weekly) weekly.querySelector('select').disabled = true;
+    if (monthly) monthly.querySelector('input').disabled = true;
+  }
+}
+
+window.addEventListener('load', updateScheduleInputs);

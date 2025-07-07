@@ -121,6 +121,8 @@ def init_db():
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('BACKUP_RETENTION_DAYS', '30'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                  ('BACKUP_KEEP_COUNT', '0'))
+        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('BACKUP_SCHEDULE_TYPE', ''))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('BACKUP_SCHEDULE_DAY', ''))
@@ -648,8 +650,11 @@ def backups_view():
                 conn.commit()
         elif action == 'retention':
             days = request.form.get('days', '').strip()
+            count = request.form.get('count', '').strip()
             if days.isdigit():
                 set_setting('BACKUP_RETENTION_DAYS', days)
+            if count.isdigit():
+                set_setting('BACKUP_KEEP_COUNT', count)
         elif action == 'schedule_add':
             stype = request.form.get('type', '')
             day = request.form.get('day', '')
@@ -714,6 +719,7 @@ def backups_view():
         return redirect(url_for('backups_view'))
 
     retention_days = int(get_setting('BACKUP_RETENTION_DAYS', '30'))
+    retention_count = int(get_setting('BACKUP_KEEP_COUNT', '0'))
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         backups = c.execute('SELECT id, created_at, status, error FROM backups ORDER BY created_at DESC').fetchall()
@@ -807,8 +813,10 @@ def backups_view():
             results = c.execute(q, params).fetchall()
 
     return render_template('backups.html', backups=backups, last_backup=last_backup,
-                           retention_days=retention_days, schedules=display_schedules,
-                           groups=groups, results=results, edit_schedule=edit_schedule)
+                           retention_days=retention_days, retention_count=retention_count,
+                           schedules=display_schedules, groups=groups,
+                           results=results, edit_schedule=edit_schedule,
+                           view_id=view_id)
 
 
 def scheduled_check():
@@ -818,15 +826,23 @@ def scheduled_check():
 
 def cleanup_old_backups():
     days = int(get_setting('BACKUP_RETENTION_DAYS', '0') or 0)
-    if days <= 0:
-        return
-    cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+    count = int(get_setting('BACKUP_KEEP_COUNT', '0') or 0)
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
-        ids = [r[0] for r in c.execute('SELECT id FROM backups WHERE created_at < ?', (cutoff,))]
-        for bid in ids:
-            c.execute('DELETE FROM backup_check_results WHERE backup_id=?', (bid,))
-            c.execute('DELETE FROM backups WHERE id=?', (bid,))
+        if days > 0:
+            cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+            ids = [r[0] for r in c.execute('SELECT id FROM backups WHERE created_at < ?', (cutoff,))]
+            for bid in ids:
+                c.execute('DELETE FROM backup_check_results WHERE backup_id=?', (bid,))
+                c.execute('DELETE FROM backups WHERE id=?', (bid,))
+        if count > 0:
+            total = c.execute('SELECT COUNT(*) FROM backups').fetchone()[0]
+            if total > count:
+                rm = total - count
+                ids = [r[0] for r in c.execute('SELECT id FROM backups ORDER BY created_at ASC LIMIT ?', (rm,))]
+                for bid in ids:
+                    c.execute('DELETE FROM backup_check_results WHERE backup_id=?', (bid,))
+                    c.execute('DELETE FROM backups WHERE id=?', (bid,))
         conn.commit()
 
 def get_backup_results(bid):

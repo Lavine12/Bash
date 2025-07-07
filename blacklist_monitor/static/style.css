@@ -121,7 +121,13 @@ button, input[type="submit"] {
 
 /* shorter day dropdown */
 .day-select {
-    width: 120px;
+    width: 140px;
+    padding: 0.4em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+.day-select.active {
+    background-color: #f0f8ff;
 }
 
 /* spacing for add schedule row */
@@ -129,4 +135,8 @@ button, input[type="submit"] {
 #schedule-form input,
 #schedule-form select {
     margin-right: 0.5em;
+}
+
+#search-section {
+    margin-top: 2em;
 }

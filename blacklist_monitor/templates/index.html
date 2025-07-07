@@ -2,6 +2,7 @@
 {% block content %}
 <h1>Monitored IPs</h1>
 <p>Total IPs: {{ ip_count }}</p>
+<div id="system-stats" class="stats"></div>
 <form method="post" action="{{ url_for('check_selected') }}">
     <button type="submit">Check Selected</button>
     <button type="submit" formaction="{{ url_for('exclude_selected') }}">Exclude Selected</button>

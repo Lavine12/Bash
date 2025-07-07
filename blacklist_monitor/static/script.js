@@ -27,39 +27,61 @@ function toggleAll(src) {
 
 window.addEventListener('load', restoreCollapse);
 
-function handleScheduleInputs(typeId, weeklyId, monthlyId) {
-  const type = document.getElementById(typeId);
-  if (!type) return;
-  const weekly = document.getElementById(weeklyId);
-  const monthly = document.getElementById(monthlyId);
-  if (weekly) weekly.style.display = 'none';
-  if (monthly) monthly.style.display = 'none';
-  if (type.value === 'weekly') {
-    if (weekly) weekly.style.display = '';
-    if (weekly) weekly.querySelector('select').disabled = false;
-    if (monthly) monthly.querySelector('input').disabled = true;
-  } else if (type.value === 'monthly') {
-    if (monthly) monthly.style.display = '';
-    if (monthly) monthly.querySelector('input').disabled = false;
-    if (weekly) weekly.querySelector('select').disabled = true;
-  } else {
-    if (weekly) weekly.querySelector('select').disabled = true;
-    if (monthly) monthly.querySelector('input').disabled = true;
+function updateScheduleDisplay(prefix) {
+  const daily = document.getElementById(prefix + '-daily');
+  const weekly = document.getElementById(prefix + '-weekly');
+  const monthly = document.getElementById(prefix + '-monthly');
+  const hidden = document.getElementById(prefix + '-type');
+  const weeklyWrap = document.getElementById(prefix + '-day-weekly');
+  const monthlyWrap = document.getElementById(prefix + '-day-monthly');
+
+  if (hidden) {
+    if (daily && daily.checked) hidden.value = 'daily';
+    else if (weekly && weekly.checked) hidden.value = 'weekly';
+    else if (monthly && monthly.checked) hidden.value = 'monthly';
+    else hidden.value = '';
+  }
+
+  if (weeklyWrap) {
+    const show = weekly && weekly.checked;
+    weeklyWrap.style.display = show ? '' : 'none';
+    const sel = weeklyWrap.querySelector('select');
+    if (sel) sel.disabled = !show;
+  }
+
+  if (monthlyWrap) {
+    const show = monthly && monthly.checked;
+    monthlyWrap.style.display = show ? '' : 'none';
+    const inp = monthlyWrap.querySelector('input');
+    if (inp) inp.disabled = !show;
   }
 }
 
-function updateScheduleInputs() {
-  handleScheduleInputs('schedule-type', 'day-weekly', 'day-monthly');
-}
+function selectType(prefix, type) {
+  const daily = document.getElementById(prefix + '-daily');
+  const weekly = document.getElementById(prefix + '-weekly');
+  const monthly = document.getElementById(prefix + '-monthly');
 
-function updateRowScheduleInputs(id) {
-  handleScheduleInputs('row-' + id + '-type', 'row-' + id + '-day-weekly', 'row-' + id + '-day-monthly');
+  if (type === 'daily') {
+    if (daily) daily.checked = true;
+    if (weekly) weekly.checked = false;
+    if (monthly) monthly.checked = false;
+  } else if (type === 'weekly') {
+    if (daily) daily.checked = false;
+    if (weekly) weekly.checked = true;
+    if (monthly) monthly.checked = false;
+  } else if (type === 'monthly') {
+    if (daily) daily.checked = false;
+    if (weekly) weekly.checked = false;
+    if (monthly) monthly.checked = true;
+  }
+  updateScheduleDisplay(prefix);
 }
 
 window.addEventListener('load', function() {
-  updateScheduleInputs();
-  document.querySelectorAll('.schedule-type-row').forEach(function(el) {
-    const id = el.dataset.rowId;
-    updateRowScheduleInputs(id);
+  updateScheduleDisplay('schedule');
+  document.querySelectorAll('.schedule-row').forEach(function(row) {
+    const id = row.dataset.rowId;
+    updateScheduleDisplay('row-' + id);
   });
 });

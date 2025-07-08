@@ -63,7 +63,8 @@ def init_db():
             ip TEXT UNIQUE,
             last_checked TEXT,
             group_id INTEGER,
-            excluded INTEGER DEFAULT 0
+            excluded INTEGER DEFAULT 0,
+            remark TEXT
         )''')
         c.execute('''CREATE TABLE IF NOT EXISTS dnsbls (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -143,6 +144,10 @@ def init_db():
         except sqlite3.OperationalError:
             pass
         try:
+            c.execute('ALTER TABLE ip_addresses ADD COLUMN remark TEXT')
+        except sqlite3.OperationalError:
+            pass
+        try:
             c.execute('ALTER TABLE telegram_chats ADD COLUMN alert_message TEXT')
         except sqlite3.OperationalError:
             pass
@@ -191,7 +196,8 @@ def index():
         ips = c.execute('''SELECT id, ip, last_checked, group_id, excluded,
                                  (SELECT MAX(listed) FROM check_results
                                   WHERE ip_id=ip_addresses.id
-                                  AND checked_at=ip_addresses.last_checked)
+                                  AND checked_at=ip_addresses.last_checked),
+                                 remark
                           FROM ip_addresses''').fetchall()
         ip_count = len(ips)
         groups = c.execute('SELECT id, name FROM ip_groups').fetchall()
@@ -230,7 +236,7 @@ def manage_ips():
                 net = ipaddress.ip_network(ip_range, strict=False)
                 for ip in net.hosts():
                     try:
-                        c.execute('INSERT OR IGNORE INTO ip_addresses (ip, group_id, excluded) VALUES (?, ?, 0)', (str(ip), group_id))
+                        c.execute('INSERT OR IGNORE INTO ip_addresses (ip, group_id, excluded, remark) VALUES (?, ?, 0, ?)', (str(ip), group_id, ''))
                         row = c.execute('SELECT id FROM ip_addresses WHERE ip=?', (str(ip),)).fetchone()
                         if row:
                             check_ip(row[0])
@@ -258,7 +264,7 @@ def bulk_ips():
             try:
                 net = ipaddress.ip_network(line, strict=False)
                 for ip in net.hosts():
-                    c.execute('INSERT OR IGNORE INTO ip_addresses (ip, group_id, excluded) VALUES (?, ?, 0)', (str(ip), group_id))
+                    c.execute('INSERT OR IGNORE INTO ip_addresses (ip, group_id, excluded, remark) VALUES (?, ?, 0, ?)', (str(ip), group_id, ''))
                     row = c.execute('SELECT id FROM ip_addresses WHERE ip=?', (str(ip),)).fetchone()
                     if row:
                         check_ip(row[0])
@@ -447,6 +453,21 @@ def include_selected():
     return redirect(url_for('index'))
 
 
+@app.route('/update_selected', methods=['POST'])
+def update_selected():
+    ids = request.form.getlist('ip_id')
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+        c = conn.cursor()
+        for ip_id in ids:
+            remark = request.form.get(f'remark_{ip_id}', '').strip()
+            try:
+                c.execute('UPDATE ip_addresses SET remark=? WHERE id=?', (remark, ip_id))
+            except sqlite3.Error:
+                pass
+        conn.commit()
+    return redirect(url_for('index'))
+
+
 def check_blacklists(group_id=None):
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
@@ -461,10 +482,11 @@ def check_blacklists(group_id=None):
 def check_ip(ip_id):
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
-        row = c.execute('SELECT ip, excluded FROM ip_addresses WHERE id=?', (ip_id,)).fetchone()
+        row = c.execute('SELECT ip, excluded, remark FROM ip_addresses WHERE id=?', (ip_id,)).fetchone()
         if not row or row[1]:
             return
         ip = row[0]
+        remark = row[2]
         dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         listed_info = []
@@ -493,10 +515,10 @@ def check_ip(ip_id):
         c.execute('UPDATE ip_addresses SET last_checked=? WHERE id=?', (timestamp, ip_id))
         conn.commit()
     if listed_info:
-        send_telegram_alerts(ip, listed_info)
+        send_telegram_alerts(ip, listed_info, remark)
 
 
-def send_telegram_alerts(ip, dnsbl_info):
+def send_telegram_alerts(ip, dnsbl_info, remark=''):
     """Send a single alert message listing all DNSBLs where the IP is found.
 
     dnsbl_info should be a list of (dnsbl_name, prev_time) tuples. The resend
@@ -541,7 +563,7 @@ def send_telegram_alerts(ip, dnsbl_info):
             try:
                 requests.post(
                     url,
-                    data={'chat_id': chat_id, 'text': message.format(ip=ip, dnsbl=', '.join(dnsbl_names))},
+                    data={'chat_id': chat_id, 'text': message.format(ip=ip, dnsbl=', '.join(dnsbl_names), remark=remark)},
                     timeout=5,
                 )
             except requests.RequestException as e:

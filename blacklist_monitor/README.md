@@ -21,6 +21,7 @@ Features:
    ```
 2. Set the environment variables `TELEGRAM_TOKEN` and `TELEGRAM_CHAT_ID` for Telegram alerts.
    Optionally set `CHECK_INTERVAL_HOURS` to change the default check interval.
+   Alert messages support placeholders such as `{ip}`, `{dnsbl}`, `{remark}`, `{date}`, `{time}` and `{count}`.
 3. Run the app:
    ```bash
    python app.py

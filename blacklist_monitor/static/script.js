@@ -31,12 +31,15 @@ function updateScheduleDisplay(prefix) {
   const daily = document.getElementById(prefix + '-daily');
   const weekly = document.getElementById(prefix + '-weekly');
   const monthly = document.getElementById(prefix + '-monthly');
+  const hourly = document.getElementById(prefix + '-hourly');
   const hidden = document.getElementById(prefix + '-type');
   const weeklyWrap = document.getElementById(prefix + '-day-weekly');
   const monthlyWrap = document.getElementById(prefix + '-day-monthly');
+  const ampmSel = document.getElementById(prefix + '-ampm');
 
   if (hidden) {
-    if (daily && daily.checked) hidden.value = 'daily';
+    if (hourly && hourly.checked) hidden.value = 'hourly';
+    else if (daily && daily.checked) hidden.value = 'daily';
     else if (weekly && weekly.checked) hidden.value = 'weekly';
     else if (monthly && monthly.checked) hidden.value = 'monthly';
     else hidden.value = '';
@@ -59,25 +62,40 @@ function updateScheduleDisplay(prefix) {
     const inp = monthlyWrap.querySelector('input');
     if (inp) inp.disabled = !show;
   }
+
+  if (ampmSel) {
+    const show = !(hourly && hourly.checked);
+    ampmSel.style.display = show ? '' : 'none';
+    ampmSel.disabled = !show;
+  }
 }
 
 function selectType(prefix, type) {
   const daily = document.getElementById(prefix + '-daily');
   const weekly = document.getElementById(prefix + '-weekly');
   const monthly = document.getElementById(prefix + '-monthly');
+  const hourly = document.getElementById(prefix + '-hourly');
 
-  if (type === 'daily') {
+  if (type === 'hourly') {
+    if (hourly) hourly.checked = true;
+    if (daily) daily.checked = false;
+    if (weekly) weekly.checked = false;
+    if (monthly) monthly.checked = false;
+  } else if (type === 'daily') {
     if (daily) daily.checked = true;
     if (weekly) weekly.checked = false;
     if (monthly) monthly.checked = false;
+    if (hourly) hourly.checked = false;
   } else if (type === 'weekly') {
     if (daily) daily.checked = false;
     if (weekly) weekly.checked = true;
     if (monthly) monthly.checked = false;
+    if (hourly) hourly.checked = false;
   } else if (type === 'monthly') {
     if (daily) daily.checked = false;
     if (weekly) weekly.checked = false;
     if (monthly) monthly.checked = true;
+    if (hourly) hourly.checked = false;
   }
   updateScheduleDisplay(prefix);
 }

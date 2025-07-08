@@ -541,6 +541,12 @@ def send_telegram_alerts(ip, dnsbl_info, remark=''):
     default_msg = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
     default_period = int(get_setting('RESEND_PERIOD', '0'))
     dnsbl_names = [d for d, _ in dnsbl_info]
+    now = datetime.datetime.now()
+    fmt_args = {
+        'date': now.strftime('%Y-%m-%d'),
+        'time': now.strftime('%H:%M'),
+        'count': len(dnsbl_names),
+    }
     for token, chat_id, active, msg, period in rows:
         if not active:
             continue
@@ -563,7 +569,7 @@ def send_telegram_alerts(ip, dnsbl_info, remark=''):
             try:
                 requests.post(
                     url,
-                    data={'chat_id': chat_id, 'text': message.format(ip=ip, dnsbl=', '.join(dnsbl_names), remark=remark)},
+                    data={'chat_id': chat_id, 'text': message.format(ip=ip, dnsbl=', '.join(dnsbl_names), remark=remark, **fmt_args)},
                     timeout=5,
                 )
             except requests.RequestException as e:
@@ -689,10 +695,12 @@ def schedule_view():
         ampm = request.form.get('ampm', 'am')
         group_id = request.form.get('group_id') or None
         sched_id = request.form.get('schedule_id')
-        if ampm == 'pm' and hour < 12:
-            hour += 12
-        if ampm == 'am' and hour == 12:
-            hour = 0
+        if stype != 'hourly':
+            if stype != 'hourly':
+                if ampm == 'pm' and hour < 12:
+                    hour += 12
+                if ampm == 'am' and hour == 12:
+                    hour = 0
         if stype == 'monthly' and day:
             try:
                 day = str(int(day.split('-')[-1]))
@@ -721,10 +729,12 @@ def schedule_view():
                 minute = int(request.form.get(f'minute_{sid}', '0') or 0)
                 ampm = request.form.get(f'ampm_{sid}', 'am')
                 group_id = request.form.get(f'group_id_{sid}') or None
-                if ampm == 'pm' and hour < 12:
-                    hour += 12
-                if ampm == 'am' and hour == 12:
-                    hour = 0
+                if stype != 'hourly':
+                    if stype != 'hourly':
+                        if ampm == 'pm' and hour < 12:
+                            hour += 12
+                        if ampm == 'am' and hour == 12:
+                            hour = 0
                 if stype == 'monthly' and day:
                     try:
                         day = str(int(day.split('-')[-1]))
@@ -755,12 +765,13 @@ def schedule_view():
             rid, g_id, typ, d, h, m, dfull = row
             am = 'AM'
             hour12 = h
-            if hour12 >= 12:
-                am = 'PM'
-                if hour12 > 12:
-                    hour12 -= 12
-            if hour12 == 0:
-                hour12 = 12
+            if typ != 'hourly':
+                if hour12 >= 12:
+                    am = 'PM'
+                    if hour12 > 12:
+                        hour12 -= 12
+                if hour12 == 0:
+                    hour12 = 12
             date_val = ''
             if typ == 'monthly':
                 if dfull:
@@ -785,12 +796,13 @@ def schedule_view():
     for sid, gid, gname, stype, day, hour, minute, date_full in schedules:
         ampm = 'AM'
         h = hour
-        if h >= 12:
-            ampm = 'PM'
-            if h > 12:
-                h -= 12
-        if h == 0:
-            h = 12
+        if stype != 'hourly':
+            if h >= 12:
+                ampm = 'PM'
+                if h > 12:
+                    h -= 12
+            if h == 0:
+                h = 12
         date_val = ''
         if stype == 'monthly':
             if date_full:
@@ -907,12 +919,13 @@ def backups_view():
     for sid, gid, gname, stype, day, hour, minute, date_full in schedules:
         ampm = 'AM'
         h = hour
-        if h >= 12:
-            ampm = 'PM'
-            if h > 12:
-                h -= 12
-        if h == 0:
-            h = 12
+        if stype != 'hourly':
+            if h >= 12:
+                ampm = 'PM'
+                if h > 12:
+                    h -= 12
+            if h == 0:
+                h = 12
         date_val = ''
         if stype == 'monthly':
             if date_full:
@@ -939,12 +952,13 @@ def backups_view():
             rid, g_id, typ, d, h, m, dfull = row
             am = 'AM'
             hour12 = h
-            if hour12 >= 12:
-                am = 'PM'
-                if hour12 > 12:
-                    hour12 -= 12
-            if hour12 == 0:
-                hour12 = 12
+            if typ != 'hourly':
+                if hour12 >= 12:
+                    am = 'PM'
+                    if hour12 > 12:
+                        hour12 -= 12
+                if hour12 == 0:
+                    hour12 = 12
             date_val = ''
             if typ == 'monthly':
                 if dfull:
@@ -1084,6 +1098,8 @@ def schedule_backup_jobs():
             sched.add_job(create_backup, 'cron', day_of_week=day or 'mon', hour=hour, minute=minute, id=job_id)
         elif stype == 'monthly':
             sched.add_job(create_backup, 'cron', day=day or '1', hour=hour, minute=minute, id=job_id)
+        elif stype == 'hourly':
+            sched.add_job(create_backup, 'interval', hours=hour, minutes=minute, id=job_id)
 
 def schedule_check_jobs():
     for job in sched.get_jobs():
@@ -1101,6 +1117,8 @@ def schedule_check_jobs():
             sched.add_job(scheduled_check, "cron", day_of_week=day or "mon", hour=hour, minute=minute, id=job_id, kwargs=kwargs)
         elif stype == "monthly":
             sched.add_job(scheduled_check, "cron", day=day or "1", hour=hour, minute=minute, id=job_id, kwargs=kwargs)
+        elif stype == "hourly":
+            sched.add_job(scheduled_check, "interval", hours=hour, minutes=minute, id=job_id, kwargs=kwargs)
 
 
 @app.route('/logs', methods=['GET', 'POST'])

@@ -9,7 +9,7 @@
     <button type="submit" formaction="{{ url_for('include_selected') }}">Include Selected</button>
     <button type="submit" formaction="{{ url_for('update_selected') }}">Update Selected</button>
     {% for g in groups %}
-        <h3 onclick="toggle('g{{ g[0] }}')" class="group-header">{{ g[1] }}{% if group_next.get(g[0]) %} - {{ group_next[g[0]] }}{% endif %}</h3>
+        <h3 onclick="toggle('g{{ g[0] }}')" class="group-header">{{ g[1] }}{% if group_next.get(g[0]) %} - {{ group_next[g[0]] }}{% endif %}{% if group_chats.get(g[0]) %} - {{ group_chats[g[0]]|join(', ') }}{% endif %}</h3>
         <div id="g{{ g[0] }}" data-collapse>
         <table>
             <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Remark</th><th>Last Checked</th><th>Status</th><th>DNSBL</th><th>Check Excluded</th></tr>
@@ -32,7 +32,7 @@
     {% set ungroup = [] %}
     {% for ip in ips %}{% if not ip[3] %}{% set _ = ungroup.append(ip) %}{% endif %}{% endfor %}
     {% if ungroup %}
-        <h3 onclick="toggle('g0')" class="group-header">Ungrouped{% if group_next.get(None) %} - {{ group_next[None] }}{% endif %}</h3>
+        <h3 onclick="toggle('g0')" class="group-header">Ungrouped{% if group_next.get(None) %} - {{ group_next[None] }}{% endif %}{% if group_chats.get(None) %} - {{ group_chats[None]|join(', ') }}{% endif %}</h3>
         <div id="g0" data-collapse>
         <table>
             <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Remark</th><th>Last Checked</th><th>Status</th><th>DNSBL</th><th>Check Excluded</th></tr>

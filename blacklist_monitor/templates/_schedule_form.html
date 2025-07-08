@@ -5,12 +5,21 @@
     <input type="hidden" name="schedule_id" value="{{ edit_schedule.id }}">
     {% endif %}
     <label>Group:</label>
+    {% if edit_schedule %}
     <select name="group_id" class="short-select">
         <option value="">All Groups</option>
         {% for g in groups %}
-        <option value="{{ g[0] }}" {% if edit_schedule and g[0]==edit_schedule.group_id %}selected{% endif %}>{{ g[1] }}</option>
+        <option value="{{ g[0] }}" {% if g[0]==edit_schedule.group_id %}selected{% endif %}>{{ g[1] }}</option>
         {% endfor %}
     </select>
+    {% else %}
+    <select name="group_ids" multiple class="short-select">
+        <option value="">All Groups</option>
+        {% for g in groups %}
+        <option value="{{ g[0] }}">{{ g[1] }}</option>
+        {% endfor %}
+    </select>
+    {% endif %}
     <input type="hidden" name="type" id="schedule-type" value="{{ edit_schedule.type if edit_schedule else 'daily' }}">
     <label><input type="checkbox" id="schedule-daily" onclick="selectType('schedule','daily')" {% if not edit_schedule or edit_schedule.type=='daily' %}checked{% endif %}>Daily</label>
     <label><input type="checkbox" id="schedule-weekly" onclick="selectType('schedule','weekly')" {% if edit_schedule and edit_schedule.type=='weekly' %}checked{% endif %}>Weekly</label>

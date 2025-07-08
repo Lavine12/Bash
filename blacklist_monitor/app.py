@@ -225,6 +225,12 @@ def index():
                            groups=groups, dnsbl_map=dnsbl_map,
                            group_next=group_next_map)
 
+
+@app.route('/features')
+def features_page():
+    """Display an overview of the application's capabilities."""
+    return render_template('features.html')
+
 @app.route('/ips', methods=['GET', 'POST'])
 def manage_ips():
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:

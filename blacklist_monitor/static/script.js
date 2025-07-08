@@ -152,4 +152,27 @@ window.addEventListener('load', function() {
     fetchStats();
     setInterval(fetchStats, 2000);
   }
+
+  document.querySelectorAll('.checkbox-dropdown').forEach(function(dd) {
+    var btn = dd.querySelector('button');
+    var menu = dd.querySelector('.checkbox-dropdown-menu');
+    function updateText() {
+      var checked = menu.querySelectorAll('input[type="checkbox"]:checked');
+      if (checked.length === 0) {
+        btn.textContent = 'Select';
+      } else if (checked.length === 1) {
+        btn.textContent = checked[0].parentNode.textContent.trim();
+      } else {
+        btn.textContent = checked.length + ' selected';
+      }
+    }
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    });
+    menu.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+      cb.addEventListener('change', updateText);
+    });
+    updateText();
+  });
 });

@@ -117,9 +117,9 @@
 <form method="post">
     <input type="hidden" name="action" value="retention">
     <label>Keep days (0 to disable cleanup):</label>
-    <input type="number" name="days" value="{{ retention_days }}" min="0" class="telegram-input">
+    <input type="number" name="days" value="{{ retention_days }}" min="0" class="telegram-input small-number">
     <label>Keep count (0 to disable limit):</label>
-    <input type="number" name="count" value="{{ retention_count }}" min="0" class="telegram-input">
+    <input type="number" name="count" value="{{ retention_count }}" min="0" class="telegram-input small-number">
     <input type="submit" value="Save">
 </form>
 <h2>Existing Backups</h2>

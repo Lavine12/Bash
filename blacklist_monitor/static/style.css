@@ -84,12 +84,22 @@ button, input[type="submit"] {
     border: 1px solid #ccc;
     border-radius: 4px;
 }
+.token-input {
+    width: 380px;
+}
+.chatid-input,
+.name-input {
+    width: 180px;
+}
 .telegram-time-input {
     padding: 0.4em;
     margin: 0.2em 0;
     width: 80px;
     border: 1px solid #ccc;
     border-radius: 4px;
+}
+.small-number {
+    width: 120px;
 }
 .placeholder-help {
     margin-top: 0.5em;
@@ -181,4 +191,25 @@ button, input[type="submit"] {
 .stats {
     font-family: monospace;
     margin-bottom: 1em;
+}
+
+.checkbox-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.checkbox-dropdown button {
+    padding: 0.4em;
+    width: 150px;
+}
+
+.checkbox-dropdown-menu {
+    display: none;
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 0.4em;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
 }

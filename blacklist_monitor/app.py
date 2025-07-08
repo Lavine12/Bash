@@ -90,6 +90,11 @@ def init_db():
             alert_message TEXT,
             resend_period INTEGER
         )''')
+        c.execute("""CREATE TABLE IF NOT EXISTS group_chats (
+            group_id INTEGER,
+            chat_id INTEGER,
+            PRIMARY KEY (group_id, chat_id)
+        )""")
         c.execute('''CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT
@@ -212,6 +217,12 @@ def index():
                                  (ip[0], ip[2])).fetchall()
                 dnsbl_map[ip[0]] = [r[0] for r in rows]
         schedules = c.execute('SELECT id, group_id FROM check_schedules').fetchall()
+        chat_rows = c.execute('''SELECT group_id, telegram_chats.name
+                                 FROM group_chats JOIN telegram_chats
+                                   ON telegram_chats.id = group_chats.chat_id''').fetchall()
+        group_chats = {}
+        for gid, cname in chat_rows:
+            group_chats.setdefault(gid, []).append(cname)
     group_next = {}
     for sid, gid in schedules:
         job = sched.get_job(f'check_job_{sid}')
@@ -221,15 +232,10 @@ def index():
                 group_next[gid] = t
     group_next_map = {gid: t.strftime('%d/%m/%Y %I:%M %p').lower()
                        for gid, t in group_next.items() if t}
-    return render_template('index.html', ips=ips, ip_count=ip_count,
+    return render_template("index.html", ips=ips, ip_count=ip_count,
                            groups=groups, dnsbl_map=dnsbl_map,
-                           group_next=group_next_map)
+                           group_next=group_next_map, group_chats=group_chats)
 
-
-@app.route('/features')
-def features_page():
-    """Display an overview of the application's capabilities."""
-    return render_template('features.html')
 
 @app.route('/ips', methods=['GET', 'POST'])
 def manage_ips():
@@ -360,11 +366,21 @@ def manage_groups():
         c = conn.cursor()
         if request.method == 'POST':
             name = request.form['group']
+            chat_ids = request.form.getlist('add_chats')
             c.execute('INSERT OR IGNORE INTO ip_groups (name) VALUES (?)', (name,))
+            gid = c.execute('SELECT id FROM ip_groups WHERE name=?', (name,)).fetchone()[0]
+            c.execute('DELETE FROM group_chats WHERE group_id=?', (gid,))
+            for cid in chat_ids:
+                c.execute('INSERT OR IGNORE INTO group_chats (group_id, chat_id) VALUES (?, ?)', (gid, cid))
             conn.commit()
             return redirect(url_for('manage_groups'))
         groups = c.execute('SELECT id, name FROM ip_groups').fetchall()
-    return render_template('groups.html', groups=groups)
+        chats = c.execute('SELECT id, name FROM telegram_chats').fetchall()
+        chat_map_rows = c.execute('SELECT group_id, chat_id FROM group_chats').fetchall()
+        group_chat_map = {}
+        for gid, cid in chat_map_rows:
+            group_chat_map.setdefault(gid, []).append(cid)
+    return render_template('groups.html', groups=groups, chats=chats, group_chats=group_chat_map)
 
 
 @app.route('/groups/delete/<int:group_id>', methods=['POST'])
@@ -372,6 +388,7 @@ def delete_group(group_id):
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         c.execute('DELETE FROM ip_groups WHERE id=?', (group_id,))
+        c.execute('DELETE FROM group_chats WHERE group_id=?', (group_id,))
         c.execute('UPDATE ip_addresses SET group_id=NULL WHERE group_id=?', (group_id,))
         conn.commit()
     return redirect(url_for('manage_groups'))
@@ -380,10 +397,14 @@ def delete_group(group_id):
 @app.route('/groups/update/<int:group_id>', methods=['POST'])
 def update_group(group_id):
     new_name = request.form.get('group_name', '').strip()
+    chat_ids = request.form.getlist('chats')
     if new_name:
         with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
             c = conn.cursor()
             c.execute('UPDATE ip_groups SET name=? WHERE id=?', (new_name, group_id))
+            c.execute('DELETE FROM group_chats WHERE group_id=?', (group_id,))
+            for cid in chat_ids:
+                c.execute('INSERT OR IGNORE INTO group_chats (group_id, chat_id) VALUES (?, ?)', (group_id, cid))
             conn.commit()
     return redirect(url_for('manage_groups'))
 
@@ -400,6 +421,10 @@ def update_selected_groups():
                     c.execute('UPDATE ip_groups SET name=? WHERE id=?', (name, gid))
                 except sqlite3.Error:
                     pass
+            chat_ids = request.form.getlist(f'chats_{gid}')
+            c.execute('DELETE FROM group_chats WHERE group_id=?', (gid,))
+            for cid in chat_ids:
+                c.execute('INSERT OR IGNORE INTO group_chats (group_id, chat_id) VALUES (?, ?)', (gid, cid))
         conn.commit()
     return redirect(url_for('manage_groups'))
 
@@ -412,6 +437,7 @@ def delete_selected_groups():
         for gid in ids:
             try:
                 c.execute('DELETE FROM ip_groups WHERE id=?', (gid,))
+                c.execute('DELETE FROM group_chats WHERE group_id=?', (gid,))
                 c.execute('UPDATE ip_addresses SET group_id=NULL WHERE group_id=?', (gid,))
             except sqlite3.Error:
                 pass
@@ -488,11 +514,12 @@ def check_blacklists(group_id=None):
 def check_ip(ip_id):
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
-        row = c.execute('SELECT ip, excluded, remark FROM ip_addresses WHERE id=?', (ip_id,)).fetchone()
+        row = c.execute('SELECT ip, excluded, remark, group_id FROM ip_addresses WHERE id=?', (ip_id,)).fetchone()
         if not row or row[1]:
             return
         ip = row[0]
         remark = row[2]
+        group_id = row[3]
         dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         listed_info = []
@@ -521,10 +548,10 @@ def check_ip(ip_id):
         c.execute('UPDATE ip_addresses SET last_checked=? WHERE id=?', (timestamp, ip_id))
         conn.commit()
     if listed_info:
-        send_telegram_alerts(ip, listed_info, remark)
+        send_telegram_alerts(ip, listed_info, remark, group_id)
 
 
-def send_telegram_alerts(ip, dnsbl_info, remark=''):
+def send_telegram_alerts(ip, dnsbl_info, remark='', group_id=None):
     """Send a single alert message listing all DNSBLs where the IP is found.
 
     dnsbl_info should be a list of (dnsbl_name, prev_time) tuples. The resend
@@ -533,9 +560,14 @@ def send_telegram_alerts(ip, dnsbl_info, remark=''):
     """
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
-        rows = c.execute(
-            'SELECT token, chat_id, active, alert_message, resend_period FROM telegram_chats'
-        ).fetchall()
+        if group_id is not None:
+            rows = c.execute('''SELECT telegram_chats.token, telegram_chats.chat_id, telegram_chats.active, telegram_chats.alert_message, telegram_chats.resend_period
+                                FROM telegram_chats JOIN group_chats ON telegram_chats.id = group_chats.chat_id
+                                WHERE group_chats.group_id=?''', (group_id,)).fetchall()
+        else:
+            rows = []
+        if not rows:
+            rows = c.execute('SELECT token, chat_id, active, alert_message, resend_period FROM telegram_chats').fetchall()
     if not rows:
         token = get_setting('TELEGRAM_TOKEN', TELEGRAM_TOKEN)
         chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
@@ -699,7 +731,7 @@ def schedule_view():
         hour = int(request.form.get('hour', '0') or 0)
         minute = int(request.form.get('minute', '0') or 0)
         ampm = request.form.get('ampm', 'am')
-        group_id = request.form.get('group_id') or None
+        group_ids = request.form.getlist('group_ids')
         sched_id = request.form.get('schedule_id')
         if stype != 'hourly':
             if stype != 'hourly':
@@ -715,11 +747,15 @@ def schedule_view():
         with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
             c = conn.cursor()
             if sched_id:
+                gid = group_ids[0] if group_ids else None
                 c.execute('''UPDATE check_schedules SET group_id=?, type=?, day=?, hour=?, minute=?, date_full=? WHERE id=?''',
-                          (group_id, stype, day, hour, minute, date_full, sched_id))
+                          (gid, stype, day, hour, minute, date_full, sched_id))
             else:
-                c.execute('INSERT INTO check_schedules (group_id, type, day, hour, minute, date_full) VALUES (?, ?, ?, ?, ?, ?)',
-                          (group_id, stype, day, hour, minute, date_full))
+                ids_list = group_ids if group_ids else ['']
+                for gid in ids_list:
+                    gval = gid or None
+                    c.execute('INSERT INTO check_schedules (group_id, type, day, hour, minute, date_full) VALUES (?, ?, ?, ?, ?, ?)',
+                              (gval, stype, day, hour, minute, date_full))
             conn.commit()
         schedule_check_jobs()
         return redirect(url_for('schedule_view'))

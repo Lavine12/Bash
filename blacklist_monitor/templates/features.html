@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Application Features</h1>
+<p>This page provides an overview of what the blacklist monitor can do.</p>
+<ul>
+    <li>Add or remove single IPs or CIDR ranges.</li>
+    <li>Add or remove DNSBL domains (bulk import supported).</li>
+    <li>Create groups and assign IPs using checkboxes.</li>
+    <li>Manual blacklist check for a single IP.</li>
+    <li>Adjustable check schedule via the web UI.</li>
+    <li>Periodic checks run according to the configured schedule.</li>
+    <li>Alerts are sent to a Telegram chat when an IP is blacklisted.</li>
+    <li>Dashboard shows last and next check times along with blacklist results.</li>
+    <li>Backup past check results with searchable history and configurable schedule.</li>
+</ul>
+{% endblock %}

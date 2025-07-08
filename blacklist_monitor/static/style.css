@@ -21,6 +21,13 @@ body {
     color: #fff;
     margin-top: 0;
 }
+.sidebar h2 a {
+    color: inherit;
+    text-decoration: none;
+}
+.sidebar h2 a:hover {
+    text-decoration: underline;
+}
 
 .sidebar ul {
     list-style: none;
@@ -83,6 +90,9 @@ button, input[type="submit"] {
     width: 80px;
     border: 1px solid #ccc;
     border-radius: 4px;
+}
+.placeholder-help {
+    margin-top: 0.5em;
 }
 .wide-select {
     padding: 0.4em;

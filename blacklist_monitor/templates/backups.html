@@ -29,6 +29,7 @@
     <label><input type="checkbox" id="schedule-daily" onclick="selectType('schedule','daily')" {% if not edit_schedule or edit_schedule.type=='daily' %}checked{% endif %}>Daily</label>
     <label><input type="checkbox" id="schedule-weekly" onclick="selectType('schedule','weekly')" {% if edit_schedule and edit_schedule.type=='weekly' %}checked{% endif %}>Weekly</label>
     <label><input type="checkbox" id="schedule-monthly" onclick="selectType('schedule','monthly')" {% if edit_schedule and edit_schedule.type=='monthly' %}checked{% endif %}>Monthly</label>
+    <label><input type="checkbox" id="schedule-hourly" onclick="selectType('schedule','hourly')" {% if edit_schedule and edit_schedule.type=='hourly' %}checked{% endif %}>Hourly</label>
     <span id="schedule-day-weekly">
         <select name="day" class="day-select">
             <option value="mon" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='mon' %}selected{% endif %}>Mon</option>
@@ -44,9 +45,9 @@
         <input type="date" name="day" class="telegram-time-input date-input" {% if edit_schedule and edit_schedule.type=='monthly' %}value="{{ edit_schedule.date_value }}"{% endif %}>
     </span>
     <label>Time:</label>
-    <input type="number" name="hour" min="1" max="12" class="telegram-time-input" {% if edit_schedule %}value="{{ edit_schedule.hour }}"{% endif %}>
+    <input type="number" name="hour" min="0" max="23" class="telegram-time-input" {% if edit_schedule %}value="{{ edit_schedule.hour }}"{% endif %}>
     <input type="number" name="minute" min="0" max="59" class="telegram-time-input" {% if edit_schedule %}value="{{ edit_schedule.minute }}"{% endif %}>
-    <select name="ampm" class="ampm-select">
+    <select name="ampm" class="ampm-select" id="schedule-ampm">
         <option value="am" {% if edit_schedule and edit_schedule.ampm=='am' %}selected{% endif %}>AM</option>
         <option value="pm" {% if edit_schedule and edit_schedule.ampm=='pm' %}selected{% endif %}>PM</option>
     </select>
@@ -82,6 +83,7 @@
                 <label><input type="checkbox" id="row-{{ s.id }}-daily" onclick="selectType('row-{{ s.id }}','daily')" {% if s.type=='daily' %}checked{% endif %}>Daily</label>
                 <label><input type="checkbox" id="row-{{ s.id }}-weekly" onclick="selectType('row-{{ s.id }}','weekly')" {% if s.type=='weekly' %}checked{% endif %}>Weekly</label>
                 <label><input type="checkbox" id="row-{{ s.id }}-monthly" onclick="selectType('row-{{ s.id }}','monthly')" {% if s.type=='monthly' %}checked{% endif %}>Monthly</label>
+                <label><input type="checkbox" id="row-{{ s.id }}-hourly" onclick="selectType('row-{{ s.id }}','hourly')" {% if s.type=='hourly' %}checked{% endif %}>Hourly</label>
             </td>
             <td>
                 <span id="row-{{ s.id }}-day-weekly">
@@ -100,9 +102,9 @@
                 </span>
             </td>
             <td>
-                <input type="number" name="hour_{{ s.id }}" min="1" max="12" class="telegram-time-input" value="{{ s.hour }}">
+                <input type="number" name="hour_{{ s.id }}" min="0" max="23" class="telegram-time-input" value="{{ s.hour }}">
                 <input type="number" name="minute_{{ s.id }}" min="0" max="59" class="telegram-time-input" value="{{ s.minute }}">
-                <select name="ampm_{{ s.id }}" class="ampm-select">
+                <select name="ampm_{{ s.id }}" class="ampm-select" id="row-{{ s.id }}-ampm">
                     <option value="am" {% if s.ampm=='AM' %}selected{% endif %}>AM</option>
                     <option value="pm" {% if s.ampm=='PM' %}selected{% endif %}>PM</option>
                 </select>

@@ -111,6 +111,12 @@ button, input[type="submit"] {
     margin: 0.2em 0;
     width: 300px;
 }
+
+.multi-select {
+    padding: 0.4em;
+    margin: 0.2em 0;
+    width: 320px;
+}
 .remark-input {
     width: 220px;
     padding: 0.2em;

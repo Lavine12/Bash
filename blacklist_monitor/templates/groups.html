@@ -3,14 +3,11 @@
 <h1>Groups</h1>
 <form method="post" class="action-buttons">
     <input type="text" name="group" placeholder="Group name" required class="telegram-input">
-    <div class="checkbox-dropdown">
-        <button type="button">Select Chats</button>
-        <div class="checkbox-dropdown-menu">
-            {% for c in chats %}
-            <label><input type="checkbox" name="add_chats" value="{{ c[0] }}"> {{ c[1] }}</label><br>
-            {% endfor %}
-        </div>
-    </div>
+    <select name="add_chats" multiple size="5" class="telegram-input multi-select">
+        {% for c in chats %}
+        <option value="{{ c[0] }}">{{ c[1] }}</option>
+        {% endfor %}
+    </select>
     <input type="submit" value="Add">
 </form>
 
@@ -30,14 +27,11 @@
             <td><input type="checkbox" name="group_id" value="{{ g[0] }}"></td>
             <td><input type="text" name="group_name_{{ g[0] }}" value="{{ g[1] }}" class="telegram-input name-input"></td>
             <td>
-                <div class="checkbox-dropdown">
-                    <button type="button">Select Chats</button>
-                    <div class="checkbox-dropdown-menu">
-                        {% for c in chats %}
-                        <label><input type="checkbox" name="chats_{{ g[0] }}" value="{{ c[0] }}" {% if c[0] in group_chats.get(g[0], []) %}checked{% endif %}> {{ c[1] }}</label><br>
-                        {% endfor %}
-                    </div>
-                </div>
+                <select name="chats_{{ g[0] }}" multiple size="5" class="telegram-input multi-select">
+                    {% for c in chats %}
+                    <option value="{{ c[0] }}" {% if c[0] in group_chats.get(g[0], []) %}selected{% endif %}>{{ c[1] }}</option>
+                    {% endfor %}
+                </select>
             </td>
         </tr>
         {% endfor %}

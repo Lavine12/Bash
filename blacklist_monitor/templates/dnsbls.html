@@ -17,6 +17,8 @@
         <tr>
             <th><input type="checkbox" onclick="toggleAll(this)"></th>
             <th>DNSBL</th>
+            <th>IP</th>
+            <th>Server</th>
             <th>Args</th>
             <th>Result</th>
         </tr>
@@ -24,6 +26,8 @@
         <tr>
             <td><input type="checkbox" name="dnsbl_id" value="{{ dnsbl[0] }}"></td>
             <td>{{ dnsbl[1] }}</td>
+            <td><input type="text" name="dig_ip_{{ dnsbl[0] }}" class="telegram-input" value="{{ request.form.get('dig_ip_' ~ dnsbl[0], '') }}"></td>
+            <td><input type="text" name="dig_server_{{ dnsbl[0] }}" class="telegram-input" value="{{ request.form.get('dig_server_' ~ dnsbl[0], '') }}"></td>
             <td><input type="text" name="dig_arg_{{ dnsbl[0] }}" class="telegram-input" value="{{ request.form.get('dig_arg_' ~ dnsbl[0], '') }}"></td>
             <td>{{ dig_results[dnsbl[0]] if dig_results and dnsbl[0] in dig_results else '' }}</td>
         </tr>

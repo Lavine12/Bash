@@ -371,8 +371,20 @@ def dig_selected_dnsbls():
             if not row:
                 continue
             domain = row[0]
+            ip = request.form.get(f'dig_ip_{did}', '').strip()
+            server = request.form.get(f'dig_server_{did}', '').strip()
             args = request.form.get(f'dig_arg_{did}', '')
-            cmd = ['dig', domain] + args.split()
+            query = domain
+            if ip:
+                try:
+                    rev = '.'.join(reversed(ip.split('.')))
+                    query = f'{rev}.{domain}'
+                except Exception:
+                    pass
+            cmd = ['dig', '+short', query]
+            if server:
+                cmd.append('@' + server)
+            cmd += args.split()
             try:
                 out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, universal_newlines=True, timeout=5)
                 lines = [l for l in out.splitlines() if l.strip()]

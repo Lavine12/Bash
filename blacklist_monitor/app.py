@@ -9,6 +9,7 @@ import dns.resolver
 import datetime
 import logging
 from collections import deque
+import subprocess
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data.db')
 DB_TIMEOUT = 30  # seconds
@@ -169,7 +170,7 @@ def init_db():
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('RESEND_PERIODIC', '1'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
-                  ('RESEND_PERIOD', '0'))
+                  ('RESEND_TIMES', '0'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('BACKUP_RETENTION_DAYS', '0'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
@@ -358,6 +359,25 @@ def delete_selected_dnsbls():
                 pass
         conn.commit()
     return redirect(url_for('manage_dnsbls'))
+
+
+@app.route('/dnsbls/ping_selected', methods=['POST'])
+def ping_selected_dnsbls():
+    ids = request.form.getlist('dnsbl_id')
+    results = []
+    with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
+        c = conn.cursor()
+        for did in ids:
+            row = c.execute('SELECT domain FROM dnsbls WHERE id=?', (did,)).fetchone()
+            if not row:
+                continue
+            domain = row[0]
+            try:
+                subprocess.run(['ping', '-c', '1', '-W', '1', domain], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                results.append((domain, True))
+            except Exception:
+                results.append((domain, False))
+    return render_template('ping_results.html', results=results)
 
 
 @app.route('/groups', methods=['GET', 'POST'])
@@ -573,11 +593,11 @@ def send_telegram_alerts(ip, dnsbl_info, remark='', group_id=None):
         chat_id = get_setting('TELEGRAM_CHAT_ID', TELEGRAM_CHAT_ID)
         if token and chat_id:
             msg = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
-            period = int(get_setting('RESEND_PERIOD', '0'))
+            period = int(get_setting('RESEND_TIMES', '0'))
             rows = [(token, chat_id, 1, msg, period)]
 
     default_msg = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
-    default_period = int(get_setting('RESEND_PERIOD', '0'))
+    default_period = int(get_setting('RESEND_TIMES', '0'))
     dnsbl_names = [d for d, _ in dnsbl_info]
     now = datetime.datetime.now()
     fmt_args = {
@@ -597,7 +617,9 @@ def send_telegram_alerts(ip, dnsbl_info, remark='', group_id=None):
                 if prev_time:
                     send = False
             else:
-                if prev_time and datetime.datetime.now() - prev_time < datetime.timedelta(minutes=resend):
+                minutes = minutes_until_next_check(group_id)
+                period_minutes = minutes // (resend + 1)
+                if prev_time and datetime.datetime.now() - prev_time < datetime.timedelta(minutes=period_minutes):
                     send = False
             if send:
                 should_send = True
@@ -654,7 +676,7 @@ def check_selected():
 @app.route('/telegram', methods=['GET', 'POST'])
 def telegram_settings():
     alert_message = get_setting('ALERT_MESSAGE', 'IP {ip} is blacklisted in {dnsbl}')
-    resend_period = int(get_setting('RESEND_PERIOD', '0'))
+    resend_period = int(get_setting('RESEND_TIMES', '0'))
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         if request.method == 'POST':
@@ -666,9 +688,7 @@ def telegram_settings():
                 active = 1 if request.form.get('active') == 'on' else 0
                 msg = request.form.get('alert_message', '').strip() or None
                 try:
-                    rh = int(request.form.get('resend_hours', 0))
-                    rm = int(request.form.get('resend_minutes', 0))
-                    period_val = rh * 60 + rm
+                    period_val = int(request.form.get('resend_times', 0))
                 except ValueError:
                     period_val = None
                 if tok and chat:
@@ -693,9 +713,7 @@ def telegram_settings():
                         active = 1 if request.form.get(f'active_{cid}') == 'on' else 0
                         msg = request.form.get(f'alert_message_{cid}', '').strip() or None
                         try:
-                            rh = int(request.form.get(f'resend_hours_{cid}', 0))
-                            rm = int(request.form.get(f'resend_minutes_{cid}', 0))
-                            period_val = rh * 60 + rm
+                            period_val = int(request.form.get(f'resend_times_{cid}', 0))
                         except ValueError:
                             period_val = None
                         c.execute('UPDATE telegram_chats SET token=?, chat_id=?, name=?, active=?, alert_message=?, resend_period=? WHERE id=?',
@@ -711,14 +729,13 @@ def telegram_settings():
                         send_test_message(message='Test Message')
         conn.commit()
         chats = c.execute('SELECT id, token, chat_id, name, active, alert_message, resend_period FROM telegram_chats').fetchall()
-    rh_disp = resend_period // 60
-    rm_disp = resend_period % 60
+    times_disp = resend_period
     chat_settings = []
     for row in chats:
         rperiod = row[6] if row[6] is not None else resend_period
-        chat_settings.append((row[0], row[1], row[2], row[3], row[4], row[5], rperiod // 60, rperiod % 60))
+        chat_settings.append((row[0], row[1], row[2], row[3], row[4], row[5], rperiod))
     return render_template('telegram.html', chats=chat_settings, message=alert_message,
-                           resend_hours=rh_disp, resend_minutes=rm_disp)
+                           resend_times=times_disp)
 
 
 @app.route('/schedule', methods=['GET', 'POST'])
@@ -1161,6 +1178,23 @@ def schedule_check_jobs():
             sched.add_job(scheduled_check, "cron", day=day or "1", hour=hour, minute=minute, id=job_id, kwargs=kwargs)
         elif stype == "hourly":
             sched.add_job(scheduled_check, "interval", hours=hour, minutes=minute, id=job_id, kwargs=kwargs)
+
+def minutes_until_next_check(group_id=None):
+    jobs = []
+    if group_id is not None:
+        jobs = [j for j in sched.get_jobs() if j.id.startswith('check_job_') and j.kwargs.get('group_id') == group_id]
+    if not jobs:
+        jobs = [j for j in sched.get_jobs() if j.id.startswith('check_job_')]
+    if not jobs:
+        return CHECK_INTERVAL_MINUTES if CHECK_INTERVAL_MINUTES > 0 else 1440
+    next_run = None
+    for j in jobs:
+        if j.next_run_time and (next_run is None or j.next_run_time < next_run):
+            next_run = j.next_run_time
+    if not next_run:
+        return CHECK_INTERVAL_MINUTES if CHECK_INTERVAL_MINUTES > 0 else 1440
+    diff = next_run - datetime.datetime.now()
+    return max(1, int(diff.total_seconds() / 60))
 
 
 @app.route('/logs', methods=['GET', 'POST'])

@@ -3,14 +3,14 @@
 <h1>Groups</h1>
 <form method="post" class="action-buttons">
     <input type="text" name="group" placeholder="Group name" required class="telegram-input">
-    <div class="checkbox-dropdown">
-        <button type="button">Select Chats</button>
-        <div class="checkbox-dropdown-menu">
+    <details class="dropdown-details">
+        <summary>Select Chats</summary>
+        <div>
             {% for c in chats %}
             <label><input type="checkbox" name="add_chats" value="{{ c[0] }}"> {{ c[1] }}</label><br>
             {% endfor %}
         </div>
-    </div>
+    </details>
     <input type="submit" value="Add">
 </form>
 
@@ -30,14 +30,14 @@
             <td><input type="checkbox" name="group_id" value="{{ g[0] }}"></td>
             <td><input type="text" name="group_name_{{ g[0] }}" value="{{ g[1] }}" class="telegram-input"></td>
             <td>
-                <div class="checkbox-dropdown">
-                    <button type="button">Select Chats</button>
-                    <div class="checkbox-dropdown-menu">
+                <details class="dropdown-details">
+                    <summary>Select Chats</summary>
+                    <div>
                         {% for c in chats %}
                         <label><input type="checkbox" name="chats_{{ g[0] }}" value="{{ c[0] }}" {% if c[0] in group_chats.get(g[0], []) %}checked{% endif %}> {{ c[1] }}</label><br>
                         {% endfor %}
                     </div>
-                </div>
+                </details>
             </td>
         </tr>
         {% endfor %}

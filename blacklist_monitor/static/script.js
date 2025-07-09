@@ -244,8 +244,19 @@ window.addEventListener('load', function() {
     } else if (inp.value) {
       localStorage.setItem(key, inp.value);
     }
-    inp.addEventListener('input', function() {
-      localStorage.setItem(key, this.value);
+      inp.addEventListener('input', function() {
+        localStorage.setItem(key, this.value);
+      });
+  });
+
+  // Save dig test fields on form submit
+  document.querySelectorAll('form').forEach(function(frm) {
+    frm.addEventListener('submit', function() {
+      document.querySelectorAll('input[name^="dig_ip_"],
+                               input[name^="dig_server_"],
+                               input[name^="dig_arg_"]').forEach(function(inp) {
+        localStorage.setItem('cache_' + inp.name, inp.value);
+      });
     });
   });
 });

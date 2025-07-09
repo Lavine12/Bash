@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Ping Results</h1>
+<table>
+<tr><th>Domain</th><th>Reachable</th></tr>
+{% for d, ok in results %}
+<tr><td>{{ d }}</td><td>{{ 'OK' if ok else 'Fail' }}</td></tr>
+{% endfor %}
+</table>
+<a href="{{ url_for('manage_dnsbls') }}">Back</a>
+{% endblock %}

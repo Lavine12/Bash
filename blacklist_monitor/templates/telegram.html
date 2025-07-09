@@ -12,9 +12,8 @@
     <input type="text" name="chat_name" class="telegram-input name-input">
     <label><input type="checkbox" name="active" checked> Active</label>
     <input type="text" name="alert_message" value="{{ message }}" class="telegram-input">
-    <label>Resend per</label>
-    <input type="number" name="resend_hours" value="{{ resend_hours }}" min="0" class="telegram-time-input" placeholder="hours">
-    <input type="number" name="resend_minutes" value="{{ resend_minutes }}" min="0" max="59" class="telegram-time-input" placeholder="minutes">
+    <label>Resend Times:</label>
+    <input type="number" name="resend_times" value="{{ resend_times }}" min="0" class="telegram-time-input">
     <br>
     <button type="submit">Add</button>
 </form>
@@ -39,8 +38,7 @@
                 <th>Chat ID</th>
                 <th>Active</th>
                 <th>Alert Message</th>
-                <th>Hours</th>
-                <th>Minutes</th>
+                <th>Times</th>
             </tr>
         </thead>
         <tbody>
@@ -52,8 +50,7 @@
                 <td><input type="text" name="chatid_{{ c[0] }}" value="{{ c[2] }}" class="telegram-input chatid-input"></td>
                 <td><input type="checkbox" name="active_{{ c[0] }}" {% if c[4] %}checked{% endif %}></td>
                 <td><input type="text" name="alert_message_{{ c[0] }}" value="{{ c[5] }}" placeholder="{{ message }}" class="telegram-input"></td>
-                <td><input type="number" name="resend_hours_{{ c[0] }}" value="{{ c[6] }}" min="0" class="telegram-time-input"></td>
-                <td><input type="number" name="resend_minutes_{{ c[0] }}" value="{{ c[7] }}" min="0" max="59" class="telegram-time-input"></td>
+                <td><input type="number" name="resend_times_{{ c[0] }}" value="{{ c[6] }}" min="0" class="telegram-time-input"></td>
             </tr>
         {% endfor %}
         </tbody>

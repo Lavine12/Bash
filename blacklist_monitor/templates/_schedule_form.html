@@ -13,21 +13,21 @@
         {% endfor %}
     </select>
     {% else %}
-    <div class="checkbox-dropdown">
-        <button type="button">Select Groups</button>
-        <div class="checkbox-dropdown-menu">
+    <details class="dropdown-details">
+        <summary>Select Groups</summary>
+        <div>
             <label><input type="checkbox" name="group_ids" value=""> All Groups</label><br>
             {% for g in groups %}
             <label><input type="checkbox" name="group_ids" value="{{ g[0] }}"> {{ g[1] }}</label><br>
             {% endfor %}
         </div>
-    </div>
+    </details>
     {% endif %}
     <input type="hidden" name="type" id="schedule-type" value="{{ edit_schedule.type if edit_schedule else 'daily' }}">
-    <label><input type="checkbox" id="schedule-daily" onclick="selectType('schedule','daily')" {% if not edit_schedule or edit_schedule.type=='daily' %}checked{% endif %}>Daily</label>
-    <label><input type="checkbox" id="schedule-weekly" onclick="selectType('schedule','weekly')" {% if edit_schedule and edit_schedule.type=='weekly' %}checked{% endif %}>Weekly</label>
-    <label><input type="checkbox" id="schedule-monthly" onclick="selectType('schedule','monthly')" {% if edit_schedule and edit_schedule.type=='monthly' %}checked{% endif %}>Monthly</label>
-    <label><input type="checkbox" id="schedule-hourly" onclick="selectType('schedule','hourly')" {% if edit_schedule and edit_schedule.type=='hourly' %}checked{% endif %}>Hourly</label>
+    <label class="type-label"><input type="checkbox" id="schedule-daily" onclick="selectType('schedule','daily')" {% if not edit_schedule or edit_schedule.type=='daily' %}checked{% endif %}>Daily</label>
+    <label class="type-label"><input type="checkbox" id="schedule-weekly" onclick="selectType('schedule','weekly')" {% if edit_schedule and edit_schedule.type=='weekly' %}checked{% endif %}>Weekly</label>
+    <label class="type-label"><input type="checkbox" id="schedule-monthly" onclick="selectType('schedule','monthly')" {% if edit_schedule and edit_schedule.type=='monthly' %}checked{% endif %}>Monthly</label>
+    <label class="type-label"><input type="checkbox" id="schedule-hourly" onclick="selectType('schedule','hourly')" {% if edit_schedule and edit_schedule.type=='hourly' %}checked{% endif %}>Hourly</label>
     <span id="schedule-day-weekly">
         <select name="day" class="day-select">
             <option value="mon" {% if edit_schedule and edit_schedule.type=='weekly' and edit_schedule.day=='mon' %}selected{% endif %}>Mon</option>
@@ -69,19 +69,22 @@
         <tr class="schedule-row" data-row-id="{{ s.id }}">
             <td><input type="checkbox" name="schedule_id" value="{{ s.id }}"></td>
             <td>
-                <select name="group_id_{{ s.id }}" class="short-select">
-                    <option value="">All Groups</option>
-                    {% for g in groups %}
-                    <option value="{{ g[0] }}" {% if s.group_id==g[0] %}selected{% endif %}>{{ g[1] }}</option>
-                    {% endfor %}
-                </select>
+                <details class="dropdown-details">
+                    <summary>Select Groups</summary>
+                    <div>
+                        <label><input type="checkbox" name="group_id_{{ s.id }}" value="" {% if not s.group_id %}checked{% endif %}> All Groups</label><br>
+                        {% for g in groups %}
+                        <label><input type="checkbox" name="group_id_{{ s.id }}" value="{{ g[0] }}" {% if s.group_id==g[0] %}checked{% endif %}> {{ g[1] }}</label><br>
+                        {% endfor %}
+                    </div>
+                </details>
             </td>
             <td>
                 <input type="hidden" name="type_{{ s.id }}" id="row-{{ s.id }}-type" value="{{ s.type }}">
-                <label><input type="checkbox" id="row-{{ s.id }}-daily" onclick="selectType('row-{{ s.id }}','daily')" {% if s.type=='daily' %}checked{% endif %}>Daily</label>
-                <label><input type="checkbox" id="row-{{ s.id }}-weekly" onclick="selectType('row-{{ s.id }}','weekly')" {% if s.type=='weekly' %}checked{% endif %}>Weekly</label>
-                <label><input type="checkbox" id="row-{{ s.id }}-monthly" onclick="selectType('row-{{ s.id }}','monthly')" {% if s.type=='monthly' %}checked{% endif %}>Monthly</label>
-                <label><input type="checkbox" id="row-{{ s.id }}-hourly" onclick="selectType('row-{{ s.id }}','hourly')" {% if s.type=='hourly' %}checked{% endif %}>Hourly</label>
+                <label class="type-label"><input type="checkbox" id="row-{{ s.id }}-daily" onclick="selectType('row-{{ s.id }}','daily')" {% if s.type=='daily' %}checked{% endif %}>Daily</label>
+                <label class="type-label"><input type="checkbox" id="row-{{ s.id }}-weekly" onclick="selectType('row-{{ s.id }}','weekly')" {% if s.type=='weekly' %}checked{% endif %}>Weekly</label>
+                <label class="type-label"><input type="checkbox" id="row-{{ s.id }}-monthly" onclick="selectType('row-{{ s.id }}','monthly')" {% if s.type=='monthly' %}checked{% endif %}>Monthly</label>
+                <label class="type-label"><input type="checkbox" id="row-{{ s.id }}-hourly" onclick="selectType('row-{{ s.id }}','hourly')" {% if s.type=='hourly' %}checked{% endif %}>Hourly</label>
             </td>
             <td>
                 <span id="row-{{ s.id }}-day-weekly">

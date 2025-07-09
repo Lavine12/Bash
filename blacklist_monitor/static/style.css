@@ -213,3 +213,31 @@ button, input[type="submit"] {
     overflow-y: auto;
     z-index: 10;
 }
+
+.dropdown-details {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-details summary {
+    padding: 0.4em;
+    width: 150px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.dropdown-details div {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 0.4em;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
+}
+
+.type-label {
+    margin-right: 0.8em;
+}

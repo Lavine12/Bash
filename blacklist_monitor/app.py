@@ -320,7 +320,7 @@ def manage_dnsbls():
             check_blacklists()
             return redirect(url_for('manage_dnsbls'))
         dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
-    return render_template('dnsbls.html', dnsbls=dnsbls)
+    return render_template('dnsbls.html', dnsbls=dnsbls, dig_results=None)
 
 
 @app.route('/dnsbls/bulk', methods=['POST'])
@@ -360,10 +360,10 @@ def delete_selected_dnsbls():
     return redirect(url_for('manage_dnsbls'))
 
 
-@app.route('/dnsbls/ping_selected', methods=['POST'])
-def ping_selected_dnsbls():
+@app.route('/dnsbls/dig_selected', methods=['POST'])
+def dig_selected_dnsbls():
     ids = request.form.getlist('dnsbl_id')
-    results = []
+    results = {}
     with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
         c = conn.cursor()
         for did in ids:
@@ -371,16 +371,16 @@ def ping_selected_dnsbls():
             if not row:
                 continue
             domain = row[0]
+            args = request.form.get(f'dig_arg_{did}', '')
+            cmd = ['dig', domain] + args.split()
             try:
-                out = subprocess.check_output(['ping', '-c', '1', '-W', '1', domain], stderr=subprocess.STDOUT, universal_newlines=True)
-                latency = None
-                m = re.search(r'time=(\d+(?:\.\d+)?)', out)
-                if m:
-                    latency = float(m.group(1))
-                results.append((domain, True, latency))
+                out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, universal_newlines=True, timeout=5)
+                lines = [l for l in out.splitlines() if l.strip()]
+                results[int(did)] = lines[-1] if lines else ''
             except Exception:
-                results.append((domain, False, None))
-    return render_template('ping_results.html', results=results)
+                results[int(did)] = 'error'
+    dnsbls = c.execute('SELECT id, domain FROM dnsbls').fetchall()
+    return render_template('dnsbls.html', dnsbls=dnsbls, dig_results=results)
 
 
 @app.route('/groups', methods=['GET', 'POST'])
@@ -637,6 +637,15 @@ def send_telegram_alerts(ip, dnsbl_info, remark='', group_id=None):
                 )
             except requests.RequestException as e:
                 print('Telegram send error:', e)
+            else:
+                if resend:
+                    total = minutes_until_next_check(group_id)
+                    interval = max(1, total) / (resend + 1)
+                    for i in range(resend):
+                        run_time = datetime.datetime.now() + datetime.timedelta(minutes=interval * (i + 1))
+                        job_id = f'resend_{chat_id}_{int(run_time.timestamp())}'
+                        sched.add_job(requests.post, 'date', run_date=run_time, id=job_id,
+                                      args=(url,), kwargs={'data': {'chat_id': chat_id, 'text': message.format(ip=ip, dnsbl=', '.join(dnsbl_names), remark=remark, **fmt_args)}, 'timeout': 5})
 
 
 def send_test_message(token=None, chat_id=None, message='Test message'):

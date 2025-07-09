@@ -11,14 +11,21 @@
     <br>
     <button type="submit" formaction="{{ url_for('bulk_dnsbls') }}">Add List</button>
     <button type="submit" formaction="{{ url_for('delete_selected_dnsbls') }}">Delete Selected</button>
-    <button type="submit" formaction="{{ url_for('ping_selected_dnsbls') }}">Ping Test</button>
+    <button type="submit" formaction="{{ url_for('dig_selected_dnsbls') }}">Dig Test</button>
     <br><br>
     <table>
-        <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>DNSBL</th></tr>
+        <tr>
+            <th><input type="checkbox" onclick="toggleAll(this)"></th>
+            <th>DNSBL</th>
+            <th>Args</th>
+            <th>Result</th>
+        </tr>
         {% for dnsbl in dnsbls %}
         <tr>
             <td><input type="checkbox" name="dnsbl_id" value="{{ dnsbl[0] }}"></td>
             <td>{{ dnsbl[1] }}</td>
+            <td><input type="text" name="dig_arg_{{ dnsbl[0] }}" class="telegram-input" value="{{ request.form.get('dig_arg_' ~ dnsbl[0], '') }}"></td>
+            <td>{{ dig_results[dnsbl[0]] if dig_results and dnsbl[0] in dig_results else '' }}</td>
         </tr>
         {% endfor %}
     </table>

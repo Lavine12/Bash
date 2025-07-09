@@ -37,6 +37,8 @@ function updateScheduleDisplay(prefix) {
   const monthlyWrap = document.getElementById(prefix + '-day-monthly');
   const ampmSel = document.getElementById(prefix + '-ampm');
   const timeLabel = document.getElementById(prefix + '-time-label');
+  const hoursWord = document.getElementById(prefix + '-hours-word');
+  const minutesWord = document.getElementById(prefix + '-minutes-word');
 
   if (hidden) {
     if (hourly && hourly.checked) hidden.value = 'hourly';
@@ -77,6 +79,9 @@ function updateScheduleDisplay(prefix) {
       timeLabel.textContent = 'Time:';
     }
   }
+  const showWords = hourly && hourly.checked;
+  if (hoursWord) hoursWord.style.display = showWords ? '' : 'none';
+  if (minutesWord) minutesWord.style.display = showWords ? '' : 'none';
 }
 
 function selectType(prefix, type) {

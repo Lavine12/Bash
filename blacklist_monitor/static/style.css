@@ -87,9 +87,11 @@ button, input[type="submit"] {
 .token-input {
     width: 380px;
 }
-.chatid-input,
-.name-input {
+.chatid-input {
     width: 180px;
+}
+.name-input {
+    width: 220px;
 }
 .telegram-time-input {
     padding: 0.4em;
@@ -154,6 +156,10 @@ button, input[type="submit"] {
 
 .time-unit {
     margin: 0 0.4em;
+}
+
+.time-label {
+    margin-right: 0.8em;
 }
 
 /* wider date selector for schedule calendar */

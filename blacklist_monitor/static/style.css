@@ -210,7 +210,8 @@ button, input[type="submit"] {
 
 .checkbox-dropdown button {
     padding: 0.4em;
-    width: 150px;
+    width: 300px;
+    text-align: left;
 }
 
 .checkbox-dropdown-menu {

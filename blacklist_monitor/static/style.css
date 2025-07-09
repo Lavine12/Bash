@@ -152,6 +152,10 @@ button, input[type="submit"] {
     margin: 0.2em 0;
 }
 
+.time-unit {
+    margin: 0 0.4em;
+}
+
 /* wider date selector for schedule calendar */
 .date-input {
     width: 180px;

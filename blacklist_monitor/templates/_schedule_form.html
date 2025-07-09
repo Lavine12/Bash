@@ -37,7 +37,7 @@
         </select>
     </span>
     <span id="schedule-day-monthly">
-        <input type="date" name="day" class="telegram-time-input date-input" {% if edit_schedule and edit_schedule.type=='monthly' %}value="{{ edit_schedule.date_value }}"{% endif %}>
+        <input type="date" name="day" class="telegram-time-input date-input" value="{{ edit_schedule.date_value if edit_schedule and edit_schedule.type=='monthly' else current_date }}">
     </span>
     <span id="schedule-time-label" class="time-label">Time:</span>
     <input type="number" name="hour" min="0" max="23" class="telegram-time-input" {% if edit_schedule %}value="{{ edit_schedule.hour }}"{% endif %}>

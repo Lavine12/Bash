@@ -232,4 +232,20 @@ window.addEventListener('load', function() {
     });
     updateText();
   });
+
+  // Persist dig test fields across visits
+  document.querySelectorAll('input[name^="dig_ip_"],
+                           input[name^="dig_server_"],
+                           input[name^="dig_arg_"]').forEach(function(inp) {
+    var key = 'cache_' + inp.name;
+    var saved = localStorage.getItem(key);
+    if (!inp.value && saved) {
+      inp.value = saved;
+    } else if (inp.value) {
+      localStorage.setItem(key, inp.value);
+    }
+    inp.addEventListener('input', function() {
+      localStorage.setItem(key, this.value);
+    });
+  });
 });

@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 <h1>Domain Name System Blacklists</h1>
+<p class="small-note">The Dig Test reverses the IP, appends it to the DNSBL domain and queries the chosen DNS server. Additional arguments are passed directly to <code>dig</code>. Example using IP <code>127.0.0.2</code>, DNS Server <code>1.1.1.1</code> and Arguments <code>+short</code>.</p>
 <form method="post">
     <input type="text" name="dnsbl" placeholder="dnsbl.example.com" required class="telegram-input">
     <input type="submit" value="Add">
@@ -18,17 +19,17 @@
             <th><input type="checkbox" onclick="toggleAll(this)"></th>
             <th>DNSBL</th>
             <th>IP</th>
-            <th>Server</th>
-            <th>Args</th>
+            <th>DNS Server</th>
+            <th>Arguments</th>
             <th>Result</th>
         </tr>
         {% for dnsbl in dnsbls %}
         <tr>
             <td><input type="checkbox" name="dnsbl_id" value="{{ dnsbl[0] }}"></td>
             <td>{{ dnsbl[1] }}</td>
-            <td><input type="text" name="dig_ip_{{ dnsbl[0] }}" class="telegram-input" value="{{ request.form.get('dig_ip_' ~ dnsbl[0], '') }}"></td>
-            <td><input type="text" name="dig_server_{{ dnsbl[0] }}" class="telegram-input" value="{{ request.form.get('dig_server_' ~ dnsbl[0], '') }}"></td>
-            <td><input type="text" name="dig_arg_{{ dnsbl[0] }}" class="telegram-input" value="{{ request.form.get('dig_arg_' ~ dnsbl[0], '') }}"></td>
+            <td><input type="text" name="dig_ip_{{ dnsbl[0] }}" class="telegram-input dig-field" value="{{ request.form.get('dig_ip_' ~ dnsbl[0], '') }}"></td>
+            <td><input type="text" name="dig_server_{{ dnsbl[0] }}" class="telegram-input dig-field" value="{{ request.form.get('dig_server_' ~ dnsbl[0], '') }}"></td>
+            <td><input type="text" name="dig_arg_{{ dnsbl[0] }}" class="telegram-input dig-field" value="{{ request.form.get('dig_arg_' ~ dnsbl[0], '') }}"></td>
             <td>{{ dig_results[dnsbl[0]] if dig_results and dnsbl[0] in dig_results else '' }}</td>
         </tr>
         {% endfor %}

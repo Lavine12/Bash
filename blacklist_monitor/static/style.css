@@ -1,7 +1,7 @@
 body {
     font-family: Arial, sans-serif;
     margin: 0;
-    font-size: 16px;
+    font-size: 18px;
 }
 
 .container {
@@ -231,11 +231,12 @@ button, input[type="submit"] {
 
 .dropdown-details summary {
     padding: 0.4em;
-    width: 150px;
+    min-width: 150px;
     border: 1px solid #ccc;
     border-radius: 4px;
     cursor: pointer;
     list-style: none;
+    display: inline-block;
 }
 
 .dropdown-details div {
@@ -246,6 +247,7 @@ button, input[type="submit"] {
     max-height: 200px;
     overflow-y: auto;
     z-index: 10;
+    min-width: 150px;
 }
 
 .type-label {

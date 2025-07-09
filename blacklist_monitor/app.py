@@ -39,7 +39,6 @@ log_handler = MemoryLogHandler()
 log_handler.setFormatter(logging.Formatter('%(message)s'))
 logging.getLogger('werkzeug').addHandler(log_handler)
 logging.getLogger('werkzeug').setLevel(logging.INFO)
-logging.getLogger().addHandler(log_handler)
 
 
 def get_setting(key, default=''):
@@ -373,10 +372,14 @@ def ping_selected_dnsbls():
                 continue
             domain = row[0]
             try:
-                subprocess.run(['ping', '-c', '1', '-W', '1', domain], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-                results.append((domain, True))
+                out = subprocess.check_output(['ping', '-c', '1', '-W', '1', domain], stderr=subprocess.STDOUT, universal_newlines=True)
+                latency = None
+                m = re.search(r'time=(\d+(?:\.\d+)?)', out)
+                if m:
+                    latency = float(m.group(1))
+                results.append((domain, True, latency))
             except Exception:
-                results.append((domain, False))
+                results.append((domain, False, None))
     return render_template('ping_results.html', results=results)
 
 
@@ -898,6 +901,7 @@ def backups_view():
                 set_setting('BACKUP_RETENTION_DAYS', days)
             if count.isdigit():
                 set_setting('BACKUP_KEEP_COUNT', count)
+            cleanup_old_backups()
         elif action == 'schedule_add':
             stype = request.form.get('type', '')
             day = request.form.get('day', '')
@@ -1193,7 +1197,8 @@ def minutes_until_next_check(group_id=None):
             next_run = j.next_run_time
     if not next_run:
         return CHECK_INTERVAL_MINUTES if CHECK_INTERVAL_MINUTES > 0 else 1440
-    diff = next_run - datetime.datetime.now()
+    now = datetime.datetime.now(tz=next_run.tzinfo)
+    diff = next_run - now
     return max(1, int(diff.total_seconds() / 60))
 
 

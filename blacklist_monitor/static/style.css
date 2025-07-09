@@ -241,3 +241,8 @@ button, input[type="submit"] {
 .type-label {
     margin-right: 0.8em;
 }
+
+.small-note {
+    font-size: 0.9em;
+    color: #555;
+}

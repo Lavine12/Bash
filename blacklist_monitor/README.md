@@ -13,6 +13,23 @@ Features:
 - Dashboard shows last and next check times along with blacklist results.
 - Backup past check results with searchable history and configurable schedule.
 
+## DNSBLs
+
+The **DNSBLs** page manages the blacklist domains that will be queried.
+Each listed DNSBL supports a **Dig Test** feature to perform ad-hoc lookups.
+You may optionally provide:
+
+* **IP** – reversed before being appended to the DNSBL domain
+* **Server** – DNS server to query (same syntax as the `@server` option)
+* **Args** – additional flags or record types passed verbatim to `dig`
+
+Example of a complex dig test command produced by these fields:
+
+```bash
+dig +short 2.0.0.127.dnsbl.example.com @8.8.8.8 TXT -p 5300 +time=2 +tries=1
+```
+
+
 ## Setup
 
 1. Install dependencies:

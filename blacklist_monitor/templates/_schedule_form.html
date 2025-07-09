@@ -42,7 +42,7 @@
     <span id="schedule-day-monthly">
         <input type="date" name="day" class="telegram-time-input date-input" {% if edit_schedule and edit_schedule.type=='monthly' %}value="{{ edit_schedule.date_value }}"{% endif %}>
     </span>
-    <label>Time:</label>
+    <span id="schedule-time-label" class="time-label">Time:</span>
     <input type="number" name="hour" min="0" max="23" class="telegram-time-input" {% if edit_schedule %}value="{{ edit_schedule.hour }}"{% endif %}>
     <input type="number" name="minute" min="0" max="59" class="telegram-time-input" {% if edit_schedule %}value="{{ edit_schedule.minute }}"{% endif %}>
     <select name="ampm" class="ampm-select" id="schedule-ampm">
@@ -103,6 +103,7 @@
                 </span>
             </td>
             <td>
+                <span id="row-{{ s.id }}-time-label" class="time-label">Time:</span>
                 <input type="number" name="hour_{{ s.id }}" min="0" max="23" class="telegram-time-input" value="{{ s.hour }}">
                 <input type="number" name="minute_{{ s.id }}" min="0" max="59" class="telegram-time-input" value="{{ s.minute }}">
                 <select name="ampm_{{ s.id }}" class="ampm-select" id="row-{{ s.id }}-ampm">

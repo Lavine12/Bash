@@ -36,6 +36,7 @@ function updateScheduleDisplay(prefix) {
   const weeklyWrap = document.getElementById(prefix + '-day-weekly');
   const monthlyWrap = document.getElementById(prefix + '-day-monthly');
   const ampmSel = document.getElementById(prefix + '-ampm');
+  const timeLabel = document.getElementById(prefix + '-time-label');
 
   if (hidden) {
     if (hourly && hourly.checked) hidden.value = 'hourly';
@@ -67,6 +68,14 @@ function updateScheduleDisplay(prefix) {
     const show = !(hourly && hourly.checked);
     ampmSel.style.display = show ? '' : 'none';
     ampmSel.disabled = !show;
+  }
+
+  if (timeLabel) {
+    if (hourly && hourly.checked) {
+      timeLabel.textContent = 'Per';
+    } else {
+      timeLabel.textContent = 'Time:';
+    }
   }
 }
 
@@ -118,6 +127,7 @@ window.addEventListener('load', function() {
   });
 
   if (document.getElementById('log-output')) {
+    let logTimer;
     function fetchLogs() {
       fetch('/log_feed').then(function(r) { return r.text(); }).then(function(t) {
         const pre = document.getElementById('log-output');
@@ -134,8 +144,29 @@ window.addEventListener('load', function() {
         }
       });
     }
-    fetchLogs();
-    setInterval(fetchLogs, 2000);
+    function startLogs() {
+      fetchLogs();
+      logTimer = setInterval(fetchLogs, 2000);
+    }
+    function stopLogs() {
+      if (logTimer) {
+        clearInterval(logTimer);
+        logTimer = null;
+      }
+    }
+    const toggle = document.getElementById('log-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', function() {
+        if (logTimer) {
+          stopLogs();
+          this.textContent = 'Resume';
+        } else {
+          startLogs();
+          this.textContent = 'Stop';
+        }
+      });
+    }
+    startLogs();
   }
 
   if (document.getElementById('system-stats')) {
@@ -160,10 +191,11 @@ window.addEventListener('load', function() {
       var checked = menu.querySelectorAll('input[type="checkbox"]:checked');
       if (checked.length === 0) {
         btn.textContent = 'Select';
-      } else if (checked.length === 1) {
-        btn.textContent = checked[0].parentNode.textContent.trim();
       } else {
-        btn.textContent = checked.length + ' selected';
+        var names = Array.from(checked).map(function(cb){
+          return cb.parentNode.textContent.trim();
+        });
+        btn.textContent = names.join(', ');
       }
     }
     btn.addEventListener('click', function(e) {
@@ -182,10 +214,11 @@ window.addEventListener('load', function() {
       var checked = dd.querySelectorAll('input[type="checkbox"]:checked');
       if (checked.length === 0) {
         summary.textContent = 'Select';
-      } else if (checked.length === 1) {
-        summary.textContent = checked[0].parentNode.textContent.trim();
       } else {
-        summary.textContent = checked.length + ' selected';
+        var names = Array.from(checked).map(function(cb){
+          return cb.parentNode.textContent.trim();
+        });
+        summary.textContent = names.join(', ');
       }
     }
     dd.addEventListener('toggle', updateText);

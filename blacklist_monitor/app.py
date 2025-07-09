@@ -401,7 +401,7 @@ def manage_groups():
         c = conn.cursor()
         if request.method == 'POST':
             name = request.form['group']
-            chat_ids = request.form.getlist('add_chats')
+            chat_ids = [cid for cid in request.form.getlist('add_chats') if cid]
             c.execute('INSERT OR IGNORE INTO ip_groups (name) VALUES (?)', (name,))
             gid = c.execute('SELECT id FROM ip_groups WHERE name=?', (name,)).fetchone()[0]
             c.execute('DELETE FROM group_chats WHERE group_id=?', (gid,))
@@ -432,7 +432,7 @@ def delete_group(group_id):
 @app.route('/groups/update/<int:group_id>', methods=['POST'])
 def update_group(group_id):
     new_name = request.form.get('group_name', '').strip()
-    chat_ids = request.form.getlist('chats')
+    chat_ids = [cid for cid in request.form.getlist('chats') if cid]
     if new_name:
         with sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT) as conn:
             c = conn.cursor()
@@ -456,7 +456,7 @@ def update_selected_groups():
                     c.execute('UPDATE ip_groups SET name=? WHERE id=?', (name, gid))
                 except sqlite3.Error:
                     pass
-            chat_ids = request.form.getlist(f'chats_{gid}')
+            chat_ids = [cid for cid in request.form.getlist(f'chats_{gid}') if cid]
             c.execute('DELETE FROM group_chats WHERE group_id=?', (gid,))
             for cid in chat_ids:
                 c.execute('INSERT OR IGNORE INTO group_chats (group_id, chat_id) VALUES (?, ?)', (gid, cid))
@@ -893,7 +893,9 @@ def schedule_view():
             elif day:
                 date_val = f"2000-01-{int(day):02d}"
         display_schedules.append({'id': sid, 'group_id': gid, 'group_name': gname, 'type': stype, 'day': day, 'hour': h, 'minute': minute, 'ampm': ampm, 'date_value': date_val})
-    return render_template('schedule.html', schedules=display_schedules, groups=groups, edit_schedule=edit_schedule)
+    current_date = datetime.datetime.now().strftime('%Y-%m-%d')
+    return render_template('schedule.html', schedules=display_schedules, groups=groups,
+                           edit_schedule=edit_schedule, current_date=current_date)
 @app.route('/backups', methods=['GET', 'POST'])
 def backups_view():
     if request.method == 'POST':
@@ -1095,11 +1097,12 @@ def backups_view():
             c = conn.cursor()
             results = c.execute(q, params).fetchall()
 
+    current_date = datetime.datetime.now().strftime('%Y-%m-%d')
     return render_template('backups.html', backups=backups, last_backup=last_backup,
                            retention_days=retention_days, retention_count=retention_count,
                            schedules=display_schedules, groups=groups,
                            results=results, edit_schedule=edit_schedule,
-                           view_id=view_id)
+                           view_id=view_id, current_date=current_date)
 
 
 def scheduled_check(group_id=None):

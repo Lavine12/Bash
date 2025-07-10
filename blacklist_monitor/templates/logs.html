@@ -3,11 +3,15 @@
 <h1>Logs</h1>
 <form method="post" class="log-settings">
     <label>History size:</label>
-    <input type="number" name="history_size" value="{{ history_size }}" min="1" class="telegram-input">
+    <input type="number" name="history_size" value="{{ history_size }}" min="0" class="telegram-input">
     <input type="submit" value="Save">
 </form>
-<p class="small-note">Only the latest {{ history_size }} log entries are saved. Older entries will be removed automatically.</p>
+<p class="small-note">Only the latest {{ history_size }} log entries are saved. Set to 0 to disable storing.</p>
+<p class="small-note">Live stream appears on the left, stored entries on the right.</p>
 <button type="button" id="log-history-toggle">Skip Stored</button>
 <button type="button" id="log-toggle">Stop</button>
-<pre id="log-output" class="log-output"></pre>
+<div class="log-container">
+    <pre id="log-output" class="log-output"></pre>
+    <pre id="log-history" class="log-output"></pre>
+</div>
 {% endblock %}

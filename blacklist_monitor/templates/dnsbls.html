@@ -8,14 +8,16 @@
 <h2>Bulk Add</h2>
 <form method="post">
     <textarea name="dnsbls_bulk" rows="4" cols="40" placeholder="one DNSBL per line" class="telegram-input"></textarea>
+    <div class="dnsbl-buttons">
+        <button type="submit" formaction="{{ url_for('bulk_dnsbls') }}">Add List</button>
+        <button type="submit" formaction="{{ url_for('delete_selected_dnsbls') }}">Delete Selected</button>
+        <button type="submit" formaction="{{ url_for('dig_selected_dnsbls') }}">Dig Test</button>
+    </div>
+    <p class="dnsbl-note small-note">Example dig test values: IP: 127.0.0.2, DNS Server: 1.1.1.1, Arguments: +short.</p>
     <br>
-    <button type="submit" formaction="{{ url_for('bulk_dnsbls') }}">Add List</button>
-    <button type="submit" formaction="{{ url_for('delete_selected_dnsbls') }}">Delete Selected</button>
-    <button type="submit" formaction="{{ url_for('dig_selected_dnsbls') }}">Dig Test</button>
-    <br><br>
     <table>
         <tr>
-            <th><input type="checkbox" onclick="toggleAll(this)"></th>
+            <th class="checkbox-col"><input type="checkbox" onclick="toggleAll(this)"></th>
             <th>DNSBL</th>
             <th>IP</th>
             <th>Server</th>
@@ -24,7 +26,7 @@
         </tr>
         {% for dnsbl in dnsbls %}
         <tr>
-            <td><input type="checkbox" name="dnsbl_id" value="{{ dnsbl[0] }}"></td>
+            <td class="checkbox-col"><input type="checkbox" name="dnsbl_id" value="{{ dnsbl[0] }}"></td>
             <td>{{ dnsbl[1] }}</td>
             <td><input type="text" name="dig_ip_{{ dnsbl[0] }}" class="telegram-input" value="{{ request.form.get('dig_ip_' ~ dnsbl[0], '') }}"></td>
             <td><input type="text" name="dig_server_{{ dnsbl[0] }}" class="telegram-input" value="{{ request.form.get('dig_server_' ~ dnsbl[0], '') }}"></td>

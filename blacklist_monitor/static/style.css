@@ -231,7 +231,7 @@ button, input[type="submit"] {
 
 .dropdown-details summary {
     padding: 0.4em;
-    width: 150px;
+    width: 220px;
     border: 1px solid #ccc;
     border-radius: 4px;
     cursor: pointer;
@@ -246,6 +246,7 @@ button, input[type="submit"] {
     max-height: 200px;
     overflow-y: auto;
     z-index: 10;
+    width: 220px;
 }
 
 .type-label {
@@ -255,5 +256,23 @@ button, input[type="submit"] {
 .small-note {
     font-size: 0.9em;
     color: #555;
+    margin-bottom: 2em;
+}
+
+.dnsbl-buttons {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+
+.dnsbl-note {
     margin-bottom: 1em;
+}
+
+.checkbox-col {
+    width: 40px;
+    text-align: center;
+}
+
+.telegram-add {
+    margin-left: 1em;
 }

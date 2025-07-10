@@ -61,7 +61,7 @@
     </div>
     <table class="schedule-table">
         <tr>
-            <th><input type="checkbox" onclick="toggleAll(this)"></th>
+            <th class="checkbox-col"><input type="checkbox" onclick="toggleAll(this)"></th>
             <th>Group</th>
             <th>Type</th>
             <th>Day</th>
@@ -69,7 +69,7 @@
         </tr>
         {% for s in schedules %}
         <tr class="schedule-row" data-row-id="{{ s.id }}">
-            <td><input type="checkbox" name="schedule_id" value="{{ s.id }}"></td>
+            <td class="checkbox-col"><input type="checkbox" name="schedule_id" value="{{ s.id }}"></td>
             <td>
                 <select name="group_id_{{ s.id }}" class="short-select">
                     <option value="">All Groups</option>
@@ -131,10 +131,10 @@
         <button type="submit" name="action" value="delete">Delete Selected</button>
     </div>
     <table>
-        <tr><th><input type="checkbox" onclick="toggleAll(this)"></th><th>ID</th><th>Date</th><th>Status</th><th>Error</th></tr>
+        <tr><th class="checkbox-col"><input type="checkbox" onclick="toggleAll(this)"></th><th>ID</th><th>Date</th><th>Status</th><th>Error</th></tr>
         {% for b in backups %}
         <tr>
-            <td><input type="checkbox" name="backup_id" value="{{ b[0] }}"></td>
+            <td class="checkbox-col"><input type="checkbox" name="backup_id" value="{{ b[0] }}"></td>
             <td>{{ b[0] }}</td>
             <td>{{ b[1] }}</td>
             <td>{{ b[2] }}</td>

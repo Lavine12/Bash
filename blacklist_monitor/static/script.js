@@ -133,7 +133,7 @@ window.addEventListener('load', function() {
 
   if (document.getElementById('log-output')) {
     let logTimer;
-    let skipHistory = false;
+    let skipHistory = true;
     let skipLength = 0;
     function fetchLogs() {
       fetch('/log_feed').then(function(r) { return r.text(); }).then(function(t) {

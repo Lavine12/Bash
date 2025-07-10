@@ -150,9 +150,14 @@ window.addEventListener('load', function() {
           }
           const text = lines.join('\n');
           const oldScroll = pre.scrollTop;
-          const oldHeight = pre.scrollHeight;
-          const atBottom = oldScroll + pre.clientHeight >= oldHeight - 20;
-          pre.textContent = text;
+          const atBottom = oldScroll + pre.clientHeight >= pre.scrollHeight - 20;
+          if (text) {
+            if (pre.textContent) {
+              pre.textContent += '\n' + text;
+            } else {
+              pre.textContent = text;
+            }
+          }
           if (atBottom) {
             pre.scrollTop = pre.scrollHeight;
           } else {

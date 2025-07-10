@@ -190,12 +190,20 @@ window.addEventListener('load', function() {
             skipHistory = false;
             skipLength = 0;
             this.textContent = 'Skip Stored';
+            stopLogs();
+            if (toggle) {
+              toggle.textContent = 'Resume';
+            }
+            fetchLogs();
           } else {
             skipHistory = true;
             skipLength = 0;
             this.textContent = 'Show Stored';
+            if (toggle) {
+              toggle.textContent = 'Stop';
+            }
+            startLogs();
           }
-          fetchLogs();
         });
       }
       startLogs();

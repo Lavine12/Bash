@@ -14,8 +14,7 @@
     <input type="text" name="alert_message" value="{{ message }}" class="telegram-input">
     <label>Resend Times:</label>
     <input type="number" name="resend_times" value="{{ resend_times }}" min="0" class="telegram-time-input">
-    <br>
-    <button type="submit">Add</button>
+    <button type="submit" class="telegram-add">Add</button>
 </form>
 <p>Available placeholders: <code>{ip}</code>, <code>{dnsbl}</code>, <code>{remark}</code>, <code>{date}</code>, <code>{time}</code>, <code>{count}</code></p>
 <p class="placeholder-help">Use these tags inside the alert message to insert the IP address, DNSBL name, your remark, the current date and time, or the number of listings.</p>
@@ -33,7 +32,7 @@
     <table>
         <thead>
             <tr>
-                <th><input type="checkbox" onclick="toggleAll(this)"></th>
+                <th class="checkbox-col"><input type="checkbox" onclick="toggleAll(this)"></th>
                 <th>Name</th>
                 <th>Bot Token</th>
                 <th>Chat ID</th>
@@ -45,7 +44,7 @@
         <tbody>
         {% for c in chats %}
             <tr>
-                <td><input type="checkbox" name="chat_id" value="{{ c[0] }}"></td>
+                <td class="checkbox-col"><input type="checkbox" name="chat_id" value="{{ c[0] }}"></td>
                 <td><input type="text" name="chatname_{{ c[0] }}" value="{{ c[3] }}" class="telegram-input name-input"></td>
                 <td><input type="text" name="token_{{ c[0] }}" value="{{ c[1] }}" class="telegram-input token-input"></td>
                 <td><input type="text" name="chatid_{{ c[0] }}" value="{{ c[2] }}" class="telegram-input chatid-input"></td>

@@ -10,11 +10,12 @@ body {
 }
 
 .sidebar {
-    width: 220px;
+    width: 240px;
     background: linear-gradient(to bottom, #2c3e50, #34495e);
     color: #fff;
     padding: 1em;
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    font-size: 1.1em;
 }
 
 .sidebar h2 {
@@ -95,7 +96,7 @@ button, input[type="submit"] {
 }
 .telegram-time-input {
     padding: 0.4em;
-    margin: 0.2em 0;
+    margin: 0.2em 0.4em;
     width: 80px;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -154,12 +155,13 @@ button, input[type="submit"] {
     margin: 0.2em 0;
 }
 
+
 .time-unit {
-    margin: 0 0.4em;
+    margin: 0 0.6em;
 }
 
 .time-label {
-    margin-right: 0.8em;
+    margin: 0 1em;
 }
 
 /* wider date selector for schedule calendar */
@@ -250,7 +252,7 @@ button, input[type="submit"] {
 }
 
 .type-label {
-    margin-right: 0.8em;
+    margin-right: 1.2em;
 }
 
 .small-note {

@@ -10,7 +10,7 @@ body {
 }
 
 .sidebar {
-    width: 240px;
+    width: 200px;
     background: linear-gradient(to bottom, #2c3e50, #34495e);
     color: #fff;
     padding: 1em;
@@ -105,7 +105,7 @@ button, input[type="submit"] {
 }
 .telegram-time-input {
     padding: 0.4em;
-    margin: 0.2em 0.4em;
+    margin: 0.2em 0.2em;
     width: 80px;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -166,11 +166,11 @@ button, input[type="submit"] {
 
 
 .time-unit {
-    margin: 0 0.6em;
+    margin: 0 0.2em;
 }
 
 .time-label {
-    margin: 0 0.6em;
+    margin: 0 0.2em;
 }
 
 /* wider date selector for schedule calendar */
@@ -190,7 +190,7 @@ button, input[type="submit"] {
 #schedule-form label,
 #schedule-form input,
 #schedule-form select {
-    margin-right: 0.4em;
+    margin-right: 0.2em;
 }
 
 #search-section {
@@ -267,7 +267,7 @@ button, input[type="submit"] {
 .small-note {
     font-size: 0.9em;
     color: #555;
-    margin-bottom: 2em;
+    margin-bottom: 1em;
 }
 
 .dnsbl-buttons {

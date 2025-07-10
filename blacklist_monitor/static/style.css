@@ -206,6 +206,11 @@ button, input[type="submit"] {
     height: 80vh;
     overflow-y: scroll;
     font-family: monospace;
+    flex: 1;
+}
+.log-container {
+    display: flex;
+    gap: 1em;
 }
 .log-settings {
     margin-bottom: 1em;

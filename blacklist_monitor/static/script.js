@@ -138,6 +138,11 @@ window.addEventListener('load', function() {
     function fetchLogs() {
       fetch('/log_feed').then(function(r) { return r.text(); }).then(function(t) {
         const pre = document.getElementById('log-output');
+        const histPre = document.getElementById('log-history');
+        if (histPre) {
+          histPre.textContent = t;
+          histPre.scrollTop = histPre.scrollHeight;
+        }
         if (pre) {
           let lines = t.split('\n');
           if (skipHistory) {

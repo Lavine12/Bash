@@ -21,7 +21,8 @@ CHECK_INTERVAL_MINUTES = int(float(os.environ.get('CHECK_INTERVAL_HOURS', '0')) 
 sched = BackgroundScheduler()
 
 # Keep recent logs for display in the web interface
-log_history = deque(maxlen=200)
+# Default history size is 0 (no storing)
+log_history = deque(maxlen=0)
 
 
 class MemoryLogHandler(logging.Handler):
@@ -183,7 +184,7 @@ def init_db():
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('BACKUP_SCHEDULE_MINUTE', '0'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
-                  ('LOG_HISTORY_SIZE', '200'))
+                  ('LOG_HISTORY_SIZE', '0'))
         if TELEGRAM_TOKEN:
             c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                       ('TELEGRAM_TOKEN', TELEGRAM_TOKEN))
@@ -1228,10 +1229,10 @@ def view_logs():
     global log_history
     if request.method == 'POST':
         size = request.form.get('history_size', '').strip()
-        if size.isdigit() and int(size) > 0:
+        if size.isdigit() and int(size) >= 0:
             set_setting('LOG_HISTORY_SIZE', size)
             log_history = deque(list(log_history), maxlen=int(size))
-    hist_size = get_setting('LOG_HISTORY_SIZE', '200')
+    hist_size = get_setting('LOG_HISTORY_SIZE', '0')
     return render_template('logs.html', history_size=hist_size)
 
 
@@ -1259,7 +1260,7 @@ def stats():
     }
 if __name__ == '__main__':
     init_db()
-    log_history = deque(maxlen=int(get_setting('LOG_HISTORY_SIZE', '200')))
+    log_history = deque(maxlen=int(get_setting('LOG_HISTORY_SIZE', '0')))
     schedule_check_jobs()
     schedule_backup_jobs()
     sched.start()

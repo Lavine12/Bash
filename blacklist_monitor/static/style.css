@@ -10,17 +10,18 @@ body {
 }
 
 .sidebar {
-    width: 200px;
+    width: 230px;
     background: linear-gradient(to bottom, #2c3e50, #34495e);
     color: #fff;
     padding: 1em;
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-    font-size: 1.1em;
+    font-size: 1.2em;
 }
 
 .sidebar h2 {
     color: #fff;
     margin-top: 0;
+    font-size: 1.4em;
 }
 .sidebar h2 a {
     color: inherit;
@@ -45,6 +46,7 @@ body {
     display: block;
     padding: 0.4em 0.2em;
     border-radius: 4px;
+    font-size: 1.1em;
 }
 
 .sidebar a:hover {
@@ -267,7 +269,7 @@ button, input[type="submit"] {
 .small-note {
     font-size: 0.9em;
     color: #555;
-    margin-bottom: 1em;
+    margin-bottom: 2em;
 }
 
 .dnsbl-buttons {

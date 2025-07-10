@@ -66,6 +66,15 @@ th, td {
     padding: 0.5em;
     text-align: left;
 }
+.dashboard-table {
+    table-layout: fixed;
+}
+
+.dnsbl-col {
+    width: 220px;
+    word-wrap: break-word;
+    white-space: normal;
+}
 
 button, input[type="submit"] {
     margin: 0.2em;
@@ -161,7 +170,7 @@ button, input[type="submit"] {
 }
 
 .time-label {
-    margin: 0 1em;
+    margin: 0 0.6em;
 }
 
 /* wider date selector for schedule calendar */
@@ -181,7 +190,7 @@ button, input[type="submit"] {
 #schedule-form label,
 #schedule-form input,
 #schedule-form select {
-    margin-right: 0.5em;
+    margin-right: 0.4em;
 }
 
 #search-section {

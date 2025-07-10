@@ -133,14 +133,26 @@ window.addEventListener('load', function() {
 
   if (document.getElementById('log-output')) {
     let logTimer;
+    let skipHistory = false;
+    let skipLength = 0;
     function fetchLogs() {
       fetch('/log_feed').then(function(r) { return r.text(); }).then(function(t) {
         const pre = document.getElementById('log-output');
         if (pre) {
+          let lines = t.split('\n');
+          if (skipHistory) {
+            if (skipLength === 0) {
+              skipLength = lines.length;
+            }
+            lines = lines.slice(skipLength);
+          } else {
+            skipLength = 0;
+          }
+          const text = lines.join('\n');
           const oldScroll = pre.scrollTop;
           const oldHeight = pre.scrollHeight;
           const atBottom = oldScroll + pre.clientHeight >= oldHeight - 20;
-          pre.textContent = t;
+          pre.textContent = text;
           if (atBottom) {
             pre.scrollTop = pre.scrollHeight;
           } else {
@@ -159,20 +171,35 @@ window.addEventListener('load', function() {
         logTimer = null;
       }
     }
-    const toggle = document.getElementById('log-toggle');
-    if (toggle) {
-      toggle.addEventListener('click', function() {
-        if (logTimer) {
-          stopLogs();
-          this.textContent = 'Resume';
-        } else {
-          startLogs();
-          this.textContent = 'Stop';
-        }
-      });
+      const toggle = document.getElementById('log-toggle');
+      if (toggle) {
+        toggle.addEventListener('click', function() {
+          if (logTimer) {
+            stopLogs();
+            this.textContent = 'Resume';
+          } else {
+            startLogs();
+            this.textContent = 'Stop';
+          }
+        });
+      }
+      const histToggle = document.getElementById('log-history-toggle');
+      if (histToggle) {
+        histToggle.addEventListener('click', function() {
+          if (skipHistory) {
+            skipHistory = false;
+            skipLength = 0;
+            this.textContent = 'Skip Stored';
+          } else {
+            skipHistory = true;
+            skipLength = 0;
+            this.textContent = 'Show Stored';
+          }
+          fetchLogs();
+        });
+      }
+      startLogs();
     }
-    startLogs();
-  }
 
   if (document.getElementById('system-stats')) {
     function fetchStats() {

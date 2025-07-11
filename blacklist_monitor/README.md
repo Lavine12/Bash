@@ -43,6 +43,10 @@ dig +short 2.0.0.127.dnsbl.example.com @8.8.8.8 TXT -p 5300 +time=2 +tries=1
    ```bash
    python app.py
    ```
+To keep the monitor running without locking the terminal, you can start it in the background:
+```bash
+nohup python app.py >/dev/null 2>&1 &
+```
 
 The web interface will be available at `http://localhost:5000`.
 
@@ -59,10 +63,7 @@ Then start a container while providing the required environment variables and
 exposing port `5000`:
 
 ```bash
-docker run -p 5000:5000 \
-  -e TELEGRAM_TOKEN=<your token> \
-  -e TELEGRAM_CHAT_ID=<your chat id> \
-  blacklist-monitor
+docker run -d -p 5000:5000 blacklist-monitor
 ```
 
 The web interface will then be available at `http://localhost:5000`.
@@ -71,14 +72,13 @@ The web interface will then be available at `http://localhost:5000`.
 
 The sidebar includes a **Logs** page that streams recent application output.
 This allows you to watch requests in real time without accessing the console.
-You can configure how many recent entries are kept using the *History size* setting.
 
 Example output:
 
 ```
-124.217.240.99 - - [07/Jul/2025 17:14:03] "GET /ips HTTP/1.1" 200 -
-124.217.240.99 - - [07/Jul/2025 17:14:03] "GET /static/style.css HTTP/1.1" 304 -
-124.217.240.99 - - [07/Jul/2025 17:14:03] "GET /static/script.js HTTP/1.1" 304 -
-124.217.240.99 - - [07/Jul/2025 17:14:04] "GET / HTTP/1.1" 200 -
+203.0.113.42 - - [07/Jul/2025 17:14:03] "GET /ips HTTP/1.1" 200 -
+203.0.113.42 - - [07/Jul/2025 17:14:03] "GET /static/style.css HTTP/1.1" 304 -
+203.0.113.42 - - [07/Jul/2025 17:14:03] "GET /static/script.js HTTP/1.1" 304 -
+203.0.113.42 - - [07/Jul/2025 17:14:04] "GET / HTTP/1.1" 200 -
 ```
 

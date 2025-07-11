@@ -19,12 +19,15 @@
     <input type="hidden" name="schedule_id" value="{{ edit_schedule.id }}">
     {% endif %}
     <label>Group:</label>
-    <select name="group_id" class="short-select">
-        <option value="">All Groups</option>
-        {% for g in groups %}
-        <option value="{{ g[0] }}" {% if edit_schedule and g[0]==edit_schedule.group_id %}selected{% endif %}>{{ g[1] }}</option>
-        {% endfor %}
-    </select>
+    <details class="dropdown-details">
+        <summary>Select Group</summary>
+        <div>
+            <label><input type="checkbox" name="group_id" value="" {% if not edit_schedule or not edit_schedule.group_id %}checked{% endif %}> All Groups</label><br>
+            {% for g in groups %}
+            <label><input type="checkbox" name="group_id" value="{{ g[0] }}" {% if edit_schedule and g[0]==edit_schedule.group_id %}checked{% endif %}> {{ g[1] }}</label><br>
+            {% endfor %}
+        </div>
+    </details>
     <input type="hidden" name="type" id="schedule-type" value="{{ edit_schedule.type if edit_schedule else 'daily' }}">
     <label><input type="checkbox" id="schedule-daily" onclick="selectType('schedule','daily')" {% if not edit_schedule or edit_schedule.type=='daily' %}checked{% endif %}>Daily</label>
     <label><input type="checkbox" id="schedule-weekly" onclick="selectType('schedule','weekly')" {% if edit_schedule and edit_schedule.type=='weekly' %}checked{% endif %}>Weekly</label>
@@ -73,12 +76,15 @@
         <tr class="schedule-row" data-row-id="{{ s.id }}">
             <td class="checkbox-col"><input type="checkbox" name="schedule_id" value="{{ s.id }}"></td>
             <td>
-                <select name="group_id_{{ s.id }}" class="short-select">
-                    <option value="">All Groups</option>
-                    {% for g in groups %}
-                    <option value="{{ g[0] }}" {% if s.group_id==g[0] %}selected{% endif %}>{{ g[1] }}</option>
-                    {% endfor %}
-                </select>
+                <details class="dropdown-details">
+                    <summary>Select Group</summary>
+                    <div>
+                        <label><input type="checkbox" name="group_id_{{ s.id }}" value="" {% if not s.group_id %}checked{% endif %}> All Groups</label><br>
+                        {% for g in groups %}
+                        <label><input type="checkbox" name="group_id_{{ s.id }}" value="{{ g[0] }}" {% if s.group_id==g[0] %}checked{% endif %}> {{ g[1] }}</label><br>
+                        {% endfor %}
+                    </div>
+                </details>
             </td>
             <td>
                 <input type="hidden" name="type_{{ s.id }}" id="row-{{ s.id }}-type" value="{{ s.type }}">

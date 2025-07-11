@@ -12,17 +12,17 @@
         <h3 onclick="toggle('g{{ g[0] }}')" class="group-header">{{ g[1] }}{% if group_next.get(g[0]) %} - {{ group_next[g[0]] }}{% endif %}{% if group_chats.get(g[0]) %} - {{ group_chats[g[0]]|join(', ') }}{% endif %}</h3>
         <div id="g{{ g[0] }}" data-collapse>
         <table class="dashboard-table">
-            <tr><th class="checkbox-col"><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Remark</th><th>Last Checked</th><th>Status</th><th class="dnsbl-col">DNSBL</th><th>Check Excluded</th></tr>
+            <tr><th class="checkbox-col"><input type="checkbox" onclick="toggleAll(this)"></th><th class="ip-col">IP Address</th><th>Remark</th><th>Last Checked</th><th class="status-col">Status</th><th class="dnsbl-col">DNSBL</th><th class="excluded-col">Check Excluded</th></tr>
             {% for ip in ips %}
                 {% if ip[3] == g[0] %}
                 <tr class="{% if ip[4] %}row-excluded{% elif ip[5] == 1 %}row-listed{% elif ip[5] == 0 %}row-clean{% else %}row-unknown{% endif %}">
                     <td class="checkbox-col"><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
-                    <td>{{ ip[1] }}</td>
+                    <td class="ip-col">{{ ip[1] }}</td>
                     <td><input type="text" name="remark_{{ ip[0] }}" value="{{ ip[6] }}" class="remark-input"></td>
                     <td>{{ ip[2] or 'never' }}</td>
-                    <td class="{% if ip[5] == 1 %}status-listed{% elif ip[5] == 0 %}status-clean{% endif %}">{% if ip[5] == 1 %}listed{% elif ip[5] == 0 %}clean{% else %}-{% endif %}</td>
+                    <td class="{% if ip[5] == 1 %}status-listed{% elif ip[5] == 0 %}status-clean{% endif %} status-col">{% if ip[5] == 1 %}listed{% elif ip[5] == 0 %}clean{% else %}-{% endif %}</td>
                     <td class="dnsbl-col">{{ dnsbl_map[ip[0]]|join(', ') }}</td>
-                    <td>{{ 'yes' if ip[4] else 'no' }}</td>
+                    <td class="excluded-col">{{ 'yes' if ip[4] else 'no' }}</td>
                 </tr>
                 {% endif %}
             {% endfor %}
@@ -35,16 +35,16 @@
         <h3 onclick="toggle('g0')" class="group-header">Ungrouped{% if group_next.get(None) %} - {{ group_next[None] }}{% endif %}{% if group_chats.get(None) %} - {{ group_chats[None]|join(', ') }}{% endif %}</h3>
         <div id="g0" data-collapse>
         <table class="dashboard-table">
-            <tr><th class="checkbox-col"><input type="checkbox" onclick="toggleAll(this)"></th><th>IP</th><th>Remark</th><th>Last Checked</th><th>Status</th><th class="dnsbl-col">DNSBL</th><th>Check Excluded</th></tr>
+            <tr><th class="checkbox-col"><input type="checkbox" onclick="toggleAll(this)"></th><th class="ip-col">IP Address</th><th>Remark</th><th>Last Checked</th><th class="status-col">Status</th><th class="dnsbl-col">DNSBL</th><th class="excluded-col">Check Excluded</th></tr>
             {% for ip in ungroup %}
             <tr class="{% if ip[4] %}row-excluded{% elif ip[5] == 1 %}row-listed{% elif ip[5] == 0 %}row-clean{% else %}row-unknown{% endif %}">
                 <td class="checkbox-col"><input type="checkbox" name="ip_id" value="{{ ip[0] }}"></td>
-                <td>{{ ip[1] }}</td>
+                <td class="ip-col">{{ ip[1] }}</td>
                 <td><input type="text" name="remark_{{ ip[0] }}" value="{{ ip[6] }}" class="remark-input"></td>
                 <td>{{ ip[2] or 'never' }}</td>
-                <td class="{% if ip[5] == 1 %}status-listed{% elif ip[5] == 0 %}status-clean{% endif %}">{% if ip[5] == 1 %}listed{% elif ip[5] == 0 %}clean{% else %}-{% endif %}</td>
+                <td class="{% if ip[5] == 1 %}status-listed{% elif ip[5] == 0 %}status-clean{% endif %} status-col">{% if ip[5] == 1 %}listed{% elif ip[5] == 0 %}clean{% else %}-{% endif %}</td>
                 <td class="dnsbl-col">{{ dnsbl_map[ip[0]]|join(', ') }}</td>
-                <td>{{ 'yes' if ip[4] else 'no' }}</td>
+                <td class="excluded-col">{{ 'yes' if ip[4] else 'no' }}</td>
             </tr>
             {% endfor %}
         </table>

@@ -10,7 +10,7 @@ body {
 }
 
 .sidebar {
-    width: 200px;
+    width: 150px;
     background: linear-gradient(to bottom, #2c3e50, #34495e);
     color: #fff;
     padding: 1em;

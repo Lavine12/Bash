@@ -20,6 +20,8 @@ app = Flask(__name__)
 CHECK_INTERVAL_MINUTES = int(float(os.environ.get('CHECK_INTERVAL_HOURS', '0')) * 60)
 sched = BackgroundScheduler()
 
+# Keep logs for live streaming independent of stored history
+live_logs = deque(maxlen=1000)
 # Keep recent logs for display in the web interface
 # Default history size is 0 (no storing)
 log_history = deque(maxlen=0)
@@ -33,6 +35,7 @@ class MemoryLogHandler(logging.Handler):
             return
         # remove ANSI color codes
         msg = re.sub(r"\x1b\[[0-9;]*m", "", msg)
+        live_logs.append(msg)
         log_history.append(msg)
 
 
@@ -1241,6 +1244,12 @@ def log_feed():
     return '\n'.join(log_history)
 
 
+@app.route('/log_stream')
+def log_stream():
+    """Return recent logs for live streaming."""
+    return '\n'.join(live_logs)
+
+
 @app.route('/stats')
 def stats():
     """Return simple system statistics for the dashboard."""
@@ -1261,6 +1270,7 @@ def stats():
 if __name__ == '__main__':
     init_db()
     log_history = deque(maxlen=int(get_setting('LOG_HISTORY_SIZE', '0')))
+    live_logs = deque(maxlen=1000)
     schedule_check_jobs()
     schedule_backup_jobs()
     sched.start()

@@ -133,32 +133,10 @@ window.addEventListener('load', function() {
 
   if (document.getElementById('log-output')) {
     let logTimer;
-    let skipHistory = false;
-    let skipLength = 0;
     function fetchLogs() {
-      Promise.all([
-        fetch('/log_stream').then(function(r){ return r.text(); }),
-        fetch('/log_feed').then(function(r){ return r.text(); })
-      ]).then(function(res){
-        const streamText = res[0];
-        const historyText = res[1];
+      fetch('/log_feed').then(function(r){ return r.text(); }).then(function(text){
         const pre = document.getElementById('log-output');
-        const histPre = document.getElementById('log-history');
-        if (histPre) {
-          histPre.textContent = historyText;
-          histPre.scrollTop = histPre.scrollHeight;
-        }
         if (pre) {
-          let lines = streamText.split('\n');
-          if (skipHistory) {
-            if (skipLength === 0) {
-              skipLength = lines.length;
-            }
-            lines = lines.slice(skipLength);
-          } else {
-            skipLength = 0;
-          }
-          const text = lines.join('\n');
           const oldScroll = pre.scrollTop;
           const oldHeight = pre.scrollHeight;
           const atBottom = oldScroll + pre.clientHeight >= oldHeight - 20;
@@ -191,21 +169,6 @@ window.addEventListener('load', function() {
             startLogs();
             this.textContent = 'Stop';
           }
-        });
-      }
-      const histToggle = document.getElementById('log-history-toggle');
-      if (histToggle) {
-        histToggle.addEventListener('click', function() {
-          if (skipHistory) {
-            skipHistory = false;
-            skipLength = 0;
-            this.textContent = 'Skip Stored';
-          } else {
-            skipHistory = true;
-            skipLength = 0;
-            this.textContent = 'Show Stored';
-          }
-          fetchLogs();
         });
       }
       startLogs();

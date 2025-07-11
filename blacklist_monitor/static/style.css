@@ -212,9 +212,6 @@ button, input[type="submit"] {
     display: flex;
     gap: 1em;
 }
-.log-settings {
-    margin-bottom: 1em;
-}
 
 .stats {
     font-family: monospace;

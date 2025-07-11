@@ -291,3 +291,23 @@ button, input[type="submit"] {
 .telegram-add {
     margin-left: 1em;
 }
+
+.ip-col {
+    width: 150px;
+}
+
+.status-col {
+    width: 90px;
+    text-align: center;
+}
+
+.excluded-col {
+    width: 110px;
+    text-align: center;
+}
+
+.active-col,
+.times-col {
+    width: 80px;
+    text-align: center;
+}

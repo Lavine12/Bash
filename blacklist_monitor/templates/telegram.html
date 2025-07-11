@@ -36,9 +36,9 @@
                 <th>Name</th>
                 <th>Bot Token</th>
                 <th>Chat ID</th>
-                <th>Active</th>
+                <th class="active-col">Active</th>
                 <th>Alert Message</th>
-                <th>Times</th>
+                <th class="times-col">Times</th>
             </tr>
         </thead>
         <tbody>
@@ -48,9 +48,9 @@
                 <td><input type="text" name="chatname_{{ c[0] }}" value="{{ c[3] }}" class="telegram-input name-input"></td>
                 <td><input type="text" name="token_{{ c[0] }}" value="{{ c[1] }}" class="telegram-input token-input"></td>
                 <td><input type="text" name="chatid_{{ c[0] }}" value="{{ c[2] }}" class="telegram-input chatid-input"></td>
-                <td><input type="checkbox" name="active_{{ c[0] }}" {% if c[4] %}checked{% endif %}></td>
+                <td class="active-col"><input type="checkbox" name="active_{{ c[0] }}" {% if c[4] %}checked{% endif %}></td>
                 <td><input type="text" name="alert_message_{{ c[0] }}" value="{{ c[5] }}" placeholder="{{ message }}" class="telegram-input"></td>
-                <td><input type="number" name="resend_times_{{ c[0] }}" value="{{ c[6] }}" min="0" class="telegram-time-input"></td>
+                <td class="times-col"><input type="number" name="resend_times_{{ c[0] }}" value="{{ c[6] }}" min="0" class="telegram-time-input"></td>
             </tr>
         {% endfor %}
         </tbody>

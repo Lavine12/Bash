@@ -20,11 +20,8 @@ app = Flask(__name__)
 CHECK_INTERVAL_MINUTES = int(float(os.environ.get('CHECK_INTERVAL_HOURS', '0')) * 60)
 sched = BackgroundScheduler()
 
-# Keep logs for live streaming independent of stored history
-live_logs = deque(maxlen=1000)
 # Keep recent logs for display in the web interface
-# Default history size is 0 (no storing)
-log_history = deque(maxlen=0)
+log_history = deque(maxlen=1000)
 
 
 class MemoryLogHandler(logging.Handler):
@@ -35,8 +32,8 @@ class MemoryLogHandler(logging.Handler):
             return
         # remove ANSI color codes
         msg = re.sub(r"\x1b\[[0-9;]*m", "", msg)
-        live_logs.append(msg)
-        log_history.append(msg)
+        if not log_history or log_history[-1] != msg:
+            log_history.append(msg)
 
 
 log_handler = MemoryLogHandler()
@@ -186,8 +183,6 @@ def init_db():
                   ('BACKUP_SCHEDULE_HOUR', '0'))
         c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                   ('BACKUP_SCHEDULE_MINUTE', '0'))
-        c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
-                  ('LOG_HISTORY_SIZE', '0'))
         if TELEGRAM_TOKEN:
             c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                       ('TELEGRAM_TOKEN', TELEGRAM_TOKEN))
@@ -1227,27 +1222,14 @@ def minutes_until_next_check(group_id=None):
     return max(1, int(diff.total_seconds() / 60))
 
 
-@app.route('/logs', methods=['GET', 'POST'])
+@app.route('/logs')
 def view_logs():
-    global log_history
-    if request.method == 'POST':
-        size = request.form.get('history_size', '').strip()
-        if size.isdigit() and int(size) >= 0:
-            set_setting('LOG_HISTORY_SIZE', size)
-            log_history = deque(list(log_history), maxlen=int(size))
-    hist_size = get_setting('LOG_HISTORY_SIZE', '0')
-    return render_template('logs.html', history_size=hist_size)
+    return render_template('logs.html')
 
 
 @app.route('/log_feed')
 def log_feed():
     return '\n'.join(log_history)
-
-
-@app.route('/log_stream')
-def log_stream():
-    """Return recent logs for live streaming."""
-    return '\n'.join(live_logs)
 
 
 @app.route('/stats')
@@ -1269,8 +1251,7 @@ def stats():
     }
 if __name__ == '__main__':
     init_db()
-    log_history = deque(maxlen=int(get_setting('LOG_HISTORY_SIZE', '0')))
-    live_logs = deque(maxlen=1000)
+    log_history = deque(maxlen=1000)
     schedule_check_jobs()
     schedule_backup_jobs()
     sched.start()

@@ -136,15 +136,20 @@ window.addEventListener('load', function() {
     let skipHistory = false;
     let skipLength = 0;
     function fetchLogs() {
-      fetch('/log_feed').then(function(r) { return r.text(); }).then(function(t) {
+      Promise.all([
+        fetch('/log_stream').then(function(r){ return r.text(); }),
+        fetch('/log_feed').then(function(r){ return r.text(); })
+      ]).then(function(res){
+        const streamText = res[0];
+        const historyText = res[1];
         const pre = document.getElementById('log-output');
         const histPre = document.getElementById('log-history');
         if (histPre) {
-          histPre.textContent = t;
+          histPre.textContent = historyText;
           histPre.scrollTop = histPre.scrollHeight;
         }
         if (pre) {
-          let lines = t.split('\n');
+          let lines = streamText.split('\n');
           if (skipHistory) {
             if (skipLength === 0) {
               skipLength = lines.length;
